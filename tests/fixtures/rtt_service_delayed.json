@@ -1,0 +1,49 @@
+{
+  "serviceUid": "W12345",
+  "runDate": "2026-03-27",
+  "trainIdentity": "1T55",
+  "atocCode": "SN",
+  "atocName": "Southern",
+  "serviceType": "train",
+  "isPassenger": true,
+  "locations": [
+    {
+      "tiploc": "LNDNBDG",
+      "crs": "LBG",
+      "description": "London Bridge",
+      "gbttBookedDeparture": "0745",
+      "realtimeDeparture": "0752",
+      "realtimeDepartureActual": true,
+      "realtimeArrival": null,
+      "realtimeArrivalActual": false,
+      "platform": "3",
+      "platformConfirmed": true,
+      "platformChanged": false,
+      "displayAs": "CALL"
+    },
+    {
+      "tiploc": "GATWICK",
+      "crs": "GTW",
+      "description": "Gatwick Airport",
+      "gbttBookedArrival": "0820",
+      "gbttBookedDeparture": "0822",
+      "realtimeArrival": "0828",
+      "realtimeArrivalActual": true,
+      "realtimeDeparture": "0830",
+      "realtimeDepartureActual": true,
+      "displayAs": "CALL"
+    },
+    {
+      "tiploc": "BRIGHTON",
+      "crs": "BTN",
+      "description": "Brighton",
+      "gbttBookedArrival": "0900",
+      "realtimeArrival": "0912",
+      "realtimeArrivalActual": true,
+      "realtimeDeparture": null,
+      "realtimeDepartureActual": false,
+      "platform": "4",
+      "displayAs": "CALL"
+    }
+  ]
+}

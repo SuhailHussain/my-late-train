@@ -1,0 +1,34 @@
+{
+  "serviceUid": "W12345",
+  "runDate": "2026-03-27",
+  "trainIdentity": "1T55",
+  "atocCode": "SN",
+  "atocName": "Southern",
+  "serviceType": "cancelled",
+  "isPassenger": true,
+  "cancelReasonCode": "IA",
+  "cancelReasonShortText": "Signal failure",
+  "locations": [
+    {
+      "tiploc": "LNDNBDG",
+      "crs": "LBG",
+      "description": "London Bridge",
+      "gbttBookedDeparture": "0745",
+      "realtimeDeparture": null,
+      "realtimeDepartureActual": false,
+      "platform": "3",
+      "displayAs": "CANCELLED_CALL",
+      "cancelReasonCode": "IA",
+      "cancelReasonShortText": "Signal failure"
+    },
+    {
+      "tiploc": "BRIGHTON",
+      "crs": "BTN",
+      "description": "Brighton",
+      "gbttBookedArrival": "0900",
+      "realtimeArrival": null,
+      "realtimeArrivalActual": false,
+      "displayAs": "CANCELLED_CALL"
+    }
+  ]
+}

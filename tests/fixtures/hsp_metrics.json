@@ -1,0 +1,26 @@
+{
+  "Services": [
+    {
+      "serviceAttributesMetrics": {
+        "origin_location": "LBG",
+        "destination_location": "BTN",
+        "gbtt_ptd": "0745",
+        "gbtt_pta": "0900",
+        "toc_code": "SN",
+        "matched_services": 20,
+        "rids": ["202601010W12345", "202601020W12345"],
+        "rid": "202601010W12345",
+        "cancelled": false
+      },
+      "metrics": [
+        {"tolerance_value": 0, "num_not_on_time": 8, "num_on_time": 12, "global_not_on_time": 8, "global_on_time": 12},
+        {"tolerance_value": 1, "num_not_on_time": 5, "num_on_time": 3, "global_not_on_time": 5, "global_on_time": 3},
+        {"tolerance_value": 5, "num_not_on_time": 3, "num_on_time": 2, "global_not_on_time": 3, "global_on_time": 2},
+        {"tolerance_value": 10, "num_not_on_time": 2, "num_on_time": 1, "global_not_on_time": 2, "global_on_time": 1},
+        {"tolerance_value": 15, "num_not_on_time": 1, "num_on_time": 1, "global_not_on_time": 1, "global_on_time": 1},
+        {"tolerance_value": 20, "num_not_on_time": 1, "num_on_time": 0, "global_not_on_time": 1, "global_on_time": 0},
+        {"tolerance_value": 30, "num_not_on_time": 1, "num_on_time": 0, "global_not_on_time": 1, "global_on_time": 0}
+      ]
+    }
+  ]
+}

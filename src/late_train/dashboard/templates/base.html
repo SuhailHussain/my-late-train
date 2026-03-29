@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}My Late Train{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'media',
+      theme: {
+        extend: {
+          colors: {
+            rail: {
+              green:  '#16a34a',
+              amber:  '#d97706',
+              red:    '#dc2626',
+              purple: '#7c3aed',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .status-on-time      { @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200; }
+    .status-slight       { @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200; }
+    .status-delayed      { @apply bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200; }
+    .status-very-delayed { @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200; }
+    .status-cancelled    { @apply bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200; }
+    .status-unknown      { @apply bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+  <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight">
+          🚂 My Late Train
+        </h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          {{ origin }} → {{ destination }}
+        </p>
+      </div>
+      <span class="text-sm text-gray-400 dark:text-gray-500" id="last-updated"></span>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="max-w-7xl mx-auto px-4 sm:px-6 py-4 text-xs text-gray-400 dark:text-gray-600 border-t border-gray-200 dark:border-gray-700 mt-8">
+    Data sources: <a href="https://www.realtimetrains.co.uk" class="underline">Realtime Trains</a> ·
+    <a href="https://hsp-prod.rockshore.net" class="underline">National Rail HSP API</a> ·
+    <a href="https://www.networkrail.co.uk/who-we-are/transparency-and-ethics/transparency/" class="underline">Network Rail Attribution Data</a>.
+    Personal use only.
+  </footer>
+
+  <script>
+    document.getElementById('last-updated').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,76 @@
+{
+  "location": {
+    "name": "London Bridge",
+    "crs": "LBG"
+  },
+  "filter": null,
+  "services": [
+    {
+      "serviceUid": "W12345",
+      "runDate": "2026-03-27",
+      "trainIdentity": "1T55",
+      "runningIdentity": "1T55",
+      "atocCode": "SN",
+      "atocName": "Southern",
+      "serviceType": "train",
+      "isPassenger": true,
+      "locationDetail": {
+        "realtimeActivated": true,
+        "tiploc": "LNDNBDG",
+        "crs": "LBG",
+        "description": "London Bridge",
+        "gbttBookedDeparture": "0745",
+        "origin": [{"tiploc": "LNDNBDG", "description": "London Bridge", "workingTime": "074500", "publicTime": "0745"}],
+        "destination": [{"tiploc": "BRIGHTON", "description": "Brighton", "workingTime": "090000", "publicTime": "0900"}],
+        "isCall": true,
+        "isPublicCall": true,
+        "realtimeDeparture": "0748",
+        "realtimeDepartureActual": false,
+        "realtimeArrival": null,
+        "realtimeArrivalActual": false,
+        "platform": "3",
+        "platformConfirmed": true,
+        "platformChanged": false,
+        "displayAs": "CALL",
+        "serviceLocation": "ATSTN",
+        "subsequentLocations": [
+          {"tiploc": "GATWICK", "crs": "GTW", "description": "Gatwick Airport", "publicTime": "0820"},
+          {"tiploc": "BRIGHTON", "crs": "BTN", "description": "Brighton", "publicTime": "0900"}
+        ]
+      }
+    },
+    {
+      "serviceUid": "W99999",
+      "runDate": "2026-03-27",
+      "trainIdentity": "2B20",
+      "runningIdentity": "2B20",
+      "atocCode": "SN",
+      "atocName": "Southern",
+      "serviceType": "train",
+      "isPassenger": true,
+      "locationDetail": {
+        "realtimeActivated": true,
+        "tiploc": "LNDNBDG",
+        "crs": "LBG",
+        "description": "London Bridge",
+        "gbttBookedDeparture": "0815",
+        "origin": [{"tiploc": "LNDNBDG", "description": "London Bridge", "workingTime": "081500", "publicTime": "0815"}],
+        "destination": [{"tiploc": "BRIGHTON", "description": "Brighton", "workingTime": "091500", "publicTime": "0915"}],
+        "isCall": true,
+        "isPublicCall": true,
+        "realtimeDeparture": "0815",
+        "realtimeDepartureActual": true,
+        "realtimeArrival": null,
+        "realtimeArrivalActual": false,
+        "platform": "5",
+        "platformConfirmed": true,
+        "platformChanged": false,
+        "displayAs": "CALL",
+        "serviceLocation": "ATSTN",
+        "subsequentLocations": [
+          {"tiploc": "BRIGHTON", "crs": "BTN", "description": "Brighton", "publicTime": "0915"}
+        ]
+      }
+    }
+  ]
+}

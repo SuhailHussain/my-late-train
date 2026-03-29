@@ -1,0 +1,22 @@
+[Unit]
+Description=My Late Train Dashboard
+Documentation=https://github.com/your-username/my-late-train
+After=network.target
+
+[Service]
+Type=simple
+User=latetrain
+Group=latetrain
+WorkingDirectory=/opt/my-late-train
+ExecStart=/opt/my-late-train/.venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:8000 \
+    --access-logfile /opt/my-late-train/data/logs/access.log \
+    --error-logfile /opt/my-late-train/data/logs/gunicorn.log \
+    late_train.dashboard.app:app
+EnvironmentFile=/opt/my-late-train/.env
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

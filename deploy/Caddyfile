@@ -1,0 +1,19 @@
+# Replace your-domain.com with your actual domain.
+# Caddy handles TLS via Let's Encrypt automatically.
+# Generate password hash with: caddy hash-password
+
+your-domain.com {
+    basicauth /* {
+        # Add your username and bcrypt hash here.
+        # Generate with: caddy hash-password --plaintext yourpassword
+        suhail $2a$14$REPLACE_WITH_YOUR_HASH_HERE
+    }
+
+    reverse_proxy localhost:8000
+
+    # Optional: serve logs for troubleshooting
+    log {
+        output file /var/log/caddy/late-train.log
+        level ERROR
+    }
+}

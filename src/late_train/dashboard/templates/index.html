@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}My Late Train — {{ origin }} → {{ destination }}{% endblock %}
+
+{% block content %}
+
+<!-- ─── Summary Cards ──────────────────────────────────────────────────── -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4" id="stats-cards">
+  {% set cards = [
+    ("Total journeys", "total_journeys", ""),
+    ("On time", "pct_on_time", "%"),
+    ("Avg delay", "avg_delay_mins", " min"),
+    ("Cancellations", "total_cancellations", ""),
+  ] %}
+  {% for label, key, suffix in cards %}
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{{ label }}</p>
+    <p class="text-2xl font-bold mt-1 stat-value" data-key="{{ key }}" data-suffix="{{ suffix }}">—</p>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ─── Today's Trains ────────────────────────────────────────────────── -->
+<section class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <div class="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+    <h2 class="font-semibold text-base">Today's Trains
+      <span class="text-sm font-normal text-gray-400 dark:text-gray-500">{{ today }}</span>
+    </h2>
+  </div>
+  {% if observations %}
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-50 dark:bg-gray-700 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <tr>
+          <th class="px-4 py-3 text-left">Scheduled</th>
+          <th class="px-4 py-3 text-left">Actual</th>
+          <th class="px-4 py-3 text-left">Delay</th>
+          <th class="px-4 py-3 text-left">Status</th>
+          <th class="px-4 py-3 text-left">Platform</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for obs in observations %}
+        {% set delay = obs.delay_mins %}
+        {% if obs.cancelled %}
+          {% set status = "cancelled" %}
+        {% elif delay is none %}
+          {% set status = "unknown" %}
+        {% elif delay <= 1 %}
+          {% set status = "on-time" %}
+        {% elif delay <= 5 %}
+          {% set status = "slight" %}
+        {% elif delay <= 15 %}
+          {% set status = "delayed" %}
+        {% else %}
+          {% set status = "very-delayed" %}
+        {% endif %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-750">
+          <td class="px-4 py-3 font-mono">
+            {{ obs.scheduled_departure }}
+            {% if obs.scheduled_arrival and obs.scheduled_arrival != obs.scheduled_departure %}
+            <span class="text-gray-400 text-xs">→ {{ obs.scheduled_arrival }}</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 font-mono">
+            {% if obs.cancelled %}
+              <span class="text-purple-600 dark:text-purple-400">Cancelled</span>
+            {% elif obs.actual_arrival %}
+              {{ obs.actual_arrival }}
+            {% elif obs.actual_departure %}
+              {{ obs.actual_departure }}
+            {% else %}
+              <span class="text-gray-400">—</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 font-mono">
+            {% if obs.cancelled %}
+              <span class="text-gray-400">—</span>
+            {% elif delay is not none %}
+              {% if delay > 0 %}+{{ delay }}m{% elif delay == 0 %}0m{% else %}{{ delay }}m{% endif %}
+            {% else %}
+              <span class="text-gray-400">—</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium status-{{ status }}">
+              {% if status == "on-time" %}On time
+              {% elif status == "slight" %}Slight delay
+              {% elif status == "delayed" %}Delayed
+              {% elif status == "very-delayed" %}Very late
+              {% elif status == "cancelled" %}Cancelled
+              {% else %}Unknown
+              {% endif %}
+            </span>
+            {% if obs.cancel_reason_text %}
+            <span class="text-xs text-gray-500 ml-1">{{ obs.cancel_reason_text }}</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {{ obs.platform or "—" }}
+            {% if obs.platform_changed %}
+            <span class="text-xs text-orange-500 ml-1">changed</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="px-4 sm:px-6 py-8 text-center text-gray-400 dark:text-gray-500">
+    No trains recorded for today yet. Capture runs during commute windows.
+  </div>
+  {% endif %}
+</section>
+
+<!-- ─── Delay Trend (30 days) ─────────────────────────────────────────── -->
+<section class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="font-semibold text-base">Delay Trend</h2>
+    <div class="flex gap-2 text-xs">
+      <button onclick="loadTrend(30)" class="trend-btn px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-days="30">30d</button>
+      <button onclick="loadTrend(90)" class="trend-btn px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-days="90">90d</button>
+      <button onclick="loadTrend(180)" class="trend-btn px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600" data-days="180">180d</button>
+    </div>
+  </div>
+  <div class="relative h-48">
+    <canvas id="trendChart"></canvas>
+  </div>
+</section>
+
+<!-- ─── Bottom Grid ───────────────────────────────────────────────────── -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+  <!-- Worst Days -->
+  <section class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      <h2 class="font-semibold text-base">Worst Days</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm" id="worstDaysTable">
+        <thead class="bg-gray-50 dark:bg-gray-700 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <tr>
+            <th class="px-4 py-3 text-left">Date</th>
+            <th class="px-4 py-3 text-right">Avg delay</th>
+            <th class="px-4 py-3 text-right">Max</th>
+            <th class="px-4 py-3 text-right">Cancelled</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-700" id="worstDaysBody">
+          <tr><td colspan="4" class="px-4 py-6 text-center text-gray-400">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Delay Reasons -->
+  <section class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+    <h2 class="font-semibold text-base mb-4">Delay Reasons
+      <span class="text-xs font-normal text-gray-400 dark:text-gray-500 ml-1">(last 3 months)</span>
+    </h2>
+    <div class="relative h-48">
+      <canvas id="reasonsChart"></canvas>
+    </div>
+    <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">
+      From Network Rail attribution data. Delays under 3 min are not formally attributed.
+    </p>
+  </section>
+
+</div>
+
+<!-- ─── HSP Metrics ───────────────────────────────────────────────────── -->
+<section class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+  <h2 class="font-semibold text-base mb-4">Historical Performance (HSP)
+    <span class="text-xs font-normal text-gray-400 dark:text-gray-500 ml-1">Latest 12 periods</span>
+  </h2>
+  <div class="relative h-48">
+    <canvas id="hspChart"></canvas>
+  </div>
+  <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">
+    Data from National Rail HSP API. Run <code class="font-mono">python -m late_train backfill --weeks=52</code> to populate history.
+  </p>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+const textColor = isDark ? '#9ca3af' : '#6b7280';
+
+Chart.defaults.color = textColor;
+Chart.defaults.borderColor = gridColor;
+Chart.defaults.font.family = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+Chart.defaults.font.size = 11;
+
+// ── Stats cards ────────────────────────────────────────────────────────
+fetch('/api/stats').then(r => r.json()).then(data => {
+  document.querySelectorAll('.stat-value').forEach(el => {
+    const key = el.dataset.key;
+    const suffix = el.dataset.suffix || '';
+    const val = data[key];
+    el.textContent = val !== null && val !== undefined ? val + suffix : '—';
+  });
+});
+
+// ── Trend chart ─────────────────────────────────────────────────────────
+let trendChart;
+
+function loadTrend(days) {
+  fetch(`/api/trends?days=${days}`).then(r => r.json()).then(data => {
+    const labels = data.map(d => d.run_date);
+    const delays = data.map(d => d.avg_delay_mins);
+    const onTime = data.map(d => d.pct_on_time);
+
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Avg delay (min)',
+            data: delays,
+            borderColor: '#f97316',
+            backgroundColor: 'rgba(249,115,22,0.1)',
+            fill: true,
+            tension: 0.3,
+            yAxisID: 'y',
+          },
+          {
+            label: 'On time %',
+            data: onTime,
+            borderColor: '#16a34a',
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            yAxisID: 'y1',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          x: { ticks: { maxTicksLimit: 8 }, grid: { color: gridColor } },
+          y: {
+            type: 'linear', position: 'left',
+            title: { display: true, text: 'Avg delay (min)' },
+            min: 0,
+            grid: { color: gridColor },
+          },
+          y1: {
+            type: 'linear', position: 'right',
+            title: { display: true, text: 'On time %' },
+            min: 0, max: 100,
+            grid: { drawOnChartArea: false },
+          },
+        },
+      },
+    });
+  });
+}
+loadTrend(30);
+
+// ── Worst days table ────────────────────────────────────────────────────
+fetch('/api/worst-days?limit=10').then(r => r.json()).then(data => {
+  const tbody = document.getElementById('worstDaysBody');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-gray-400">No data yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(d => `
+    <tr class="hover:bg-gray-50 dark:hover:bg-gray-750">
+      <td class="px-4 py-2 font-mono text-sm">${d.run_date}</td>
+      <td class="px-4 py-2 text-right font-mono text-sm">${d.avg_delay_mins !== null ? d.avg_delay_mins + 'm' : '—'}</td>
+      <td class="px-4 py-2 text-right font-mono text-sm text-red-600 dark:text-red-400">${d.max_delay_mins !== null ? '+' + d.max_delay_mins + 'm' : '—'}</td>
+      <td class="px-4 py-2 text-right text-sm">${d.num_cancelled || 0}</td>
+    </tr>
+  `).join('');
+});
+
+// ── Delay reasons doughnut ──────────────────────────────────────────────
+fetch('/api/reasons?months=3').then(r => r.json()).then(data => {
+  if (!data.length) return;
+  const catColors = {
+    'Infrastructure': '#ef4444',
+    'Signalling':     '#f97316',
+    'Rolling Stock':  '#eab308',
+    'TOC Operations': '#3b82f6',
+    'NR Operations':  '#8b5cf6',
+    'External (NR)':  '#ec4899',
+    'External (TOC)': '#f472b6',
+    'Reactionary':    '#6b7280',
+    'Station':        '#14b8a6',
+    'Planned':        '#10b981',
+    'Unexplained':    '#9ca3af',
+  };
+
+  // Aggregate by category
+  const byCategory = {};
+  data.forEach(d => {
+    const cat = d.category || 'Unexplained';
+    byCategory[cat] = (byCategory[cat] || 0) + (d.total_delay_mins || 0);
+  });
+  const labels = Object.keys(byCategory);
+  const values = labels.map(l => byCategory[l]);
+  const colors = labels.map(l => catColors[l] || '#9ca3af');
+
+  new Chart(document.getElementById('reasonsChart'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: colors, borderWidth: 1 }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed.toFixed(0)} min`,
+          },
+        },
+      },
+    },
+  });
+});
+
+// ── HSP bar chart ───────────────────────────────────────────────────────
+fetch('/api/hsp-summary').then(r => r.json()).then(data => {
+  if (!data.length) return;
+  const labels = data.map(d => d.period_start);
+  const buckets = [
+    { label: 'On time',   key: 'on_time_count',      color: '#16a34a' },
+    { label: '1–5 min',   key: 'late_1_5_count',     color: '#84cc16' },
+    { label: '5–10 min',  key: 'late_5_10_count',    color: '#eab308' },
+    { label: '10–15 min', key: 'late_10_15_count',   color: '#f97316' },
+    { label: '15–30 min', key: 'late_15_20_count',   color: '#ef4444' },
+    { label: '30+ min',   key: 'late_30_plus_count', color: '#991b1b' },
+    { label: 'Cancelled', key: 'cancel_count',        color: '#7c3aed' },
+  ];
+
+  new Chart(document.getElementById('hspChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: buckets.map(b => ({
+        label: b.label,
+        data: data.map(d => d[b.key] || 0),
+        backgroundColor: b.color,
+        stack: 'stack',
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, ticks: { maxTicksLimit: 6 }, grid: { color: gridColor } },
+        y: { stacked: true, title: { display: true, text: 'Services' }, grid: { color: gridColor } },
+      },
+      plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 } } } },
+    },
+  });
+});
+</script>
+{% endblock %}

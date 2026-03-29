@@ -1,0 +1,35 @@
+{
+  "serviceAttributesDetails": {
+    "rid": "20260101W12345",
+    "uid": "W12345",
+    "locations": [
+      {
+        "location": "London Bridge",
+        "crs": "LBG",
+        "gbtt_ptd": "0745",
+        "actual_td": "0752",
+        "gbtt_pta": null,
+        "actual_ta": null,
+        "late_canc_reason": null
+      },
+      {
+        "location": "Gatwick Airport",
+        "crs": "GTW",
+        "gbtt_ptd": "0822",
+        "actual_td": "0830",
+        "gbtt_pta": "0820",
+        "actual_ta": "0828",
+        "late_canc_reason": null
+      },
+      {
+        "location": "Brighton",
+        "crs": "BTN",
+        "gbtt_ptd": null,
+        "actual_td": null,
+        "gbtt_pta": "0900",
+        "actual_ta": "0912",
+        "late_canc_reason": "IA"
+      }
+    ]
+  }
+}
