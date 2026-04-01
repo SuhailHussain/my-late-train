@@ -28,7 +28,14 @@ def _cmd_capture(args: argparse.Namespace) -> None:
 
     config = load_config(args.config)
     _setup_logging(config.log_level, config.log_file)
-    run_capture(config)
+    result = run_capture(config, force=args.force)
+    if result.get("skipped"):
+        print("Outside commute windows — use --force to capture anyway.")
+    else:
+        print(f"Captured: {result.get('captured', 0)}, "
+              f"delayed: {result.get('delayed', 0)}, "
+              f"cancelled: {result.get('cancelled', 0)}, "
+              f"errors: {result.get('errors', 0)}")
 
 
 def _cmd_backfill(args: argparse.Namespace) -> None:
@@ -74,6 +81,7 @@ def main() -> None:
 
     # capture
     p_capture = sub.add_parser("capture", help="Poll RTT API and record today's trains")
+    p_capture.add_argument("--force", action="store_true", help="Run even outside commute windows")
     p_capture.set_defaults(func=_cmd_capture)
 
     # backfill

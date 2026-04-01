@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from late_train.config import Config, RouteConfig, CommuteWindows, CommuteWindow, ApiCredentials
+from late_train.config import Config, RouteConfig, CommuteWindows, CommuteWindow, RTTConfig, ApiCredentials
 from late_train.dashboard.app import create_app
 from late_train.db import init_db, get_connection, upsert_observation, upsert_hsp_metrics, insert_attributions
 
@@ -17,7 +17,7 @@ def _make_config(tmp_path: Path) -> Config:
             morning=CommuteWindow(start="07:00", end="09:30"),
             evening=CommuteWindow(start="17:00", end="19:30"),
         ),
-        rtt=ApiCredentials(base_url="https://api.rtt.io", username="u", password="p"),
+        rtt=RTTConfig(base_url="https://data.rtt.io", refresh_token="test-token"),
         hsp=ApiCredentials(base_url="https://hsp.example.com", username="u", password="p"),
         attribution_csv_directory=tmp_path / "attribution",
         database_path=db_path,

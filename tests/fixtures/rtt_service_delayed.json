@@ -1,49 +1,62 @@
 {
-  "serviceUid": "W12345",
-  "runDate": "2026-03-27",
-  "trainIdentity": "1T55",
-  "atocCode": "SN",
-  "atocName": "Southern",
-  "serviceType": "train",
-  "isPassenger": true,
-  "locations": [
-    {
-      "tiploc": "LNDNBDG",
-      "crs": "LBG",
-      "description": "London Bridge",
-      "gbttBookedDeparture": "0745",
-      "realtimeDeparture": "0752",
-      "realtimeDepartureActual": true,
-      "realtimeArrival": null,
-      "realtimeArrivalActual": false,
-      "platform": "3",
-      "platformConfirmed": true,
-      "platformChanged": false,
-      "displayAs": "CALL"
+  "systemStatus": {"realtimeNetworkRail": "OK", "rttCore": "OK"},
+  "query": {"uniqueIdentity": "gb-nr:W12345:2026-03-27"},
+  "service": {
+    "scheduleMetadata": {
+      "uniqueIdentity": "gb-nr:W12345:2026-03-27",
+      "namespace": "gb-nr",
+      "identity": "W12345",
+      "departureDate": "2026-03-27",
+      "operator": {"code": "SN", "name": "Southern"},
+      "inPassengerService": true
     },
-    {
-      "tiploc": "GATWICK",
-      "crs": "GTW",
-      "description": "Gatwick Airport",
-      "gbttBookedArrival": "0820",
-      "gbttBookedDeparture": "0822",
-      "realtimeArrival": "0828",
-      "realtimeArrivalActual": true,
-      "realtimeDeparture": "0830",
-      "realtimeDepartureActual": true,
-      "displayAs": "CALL"
-    },
-    {
-      "tiploc": "BRIGHTON",
-      "crs": "BTN",
-      "description": "Brighton",
-      "gbttBookedArrival": "0900",
-      "realtimeArrival": "0912",
-      "realtimeArrivalActual": true,
-      "realtimeDeparture": null,
-      "realtimeDepartureActual": false,
-      "platform": "4",
-      "displayAs": "CALL"
-    }
-  ]
+    "locations": [
+      {
+        "location": {"shortCodes": ["LBG"], "longCodes": ["LNDNBDG"], "description": "London Bridge"},
+        "temporalData": {
+          "departure": {
+            "scheduleAdvertised": "2026-03-27T07:45:00",
+            "realtimeActual": "2026-03-27T07:52:00",
+            "realtimeAdvertisedLateness": 7,
+            "isCancelled": false,
+            "cancellationReasonCode": null
+          },
+          "arrival": null
+        },
+        "locationMetadata": {"platform": {"planned": "3", "forecast": null, "actual": "3"}}
+      },
+      {
+        "location": {"shortCodes": ["GTW"], "longCodes": ["GATWICK"], "description": "Gatwick Airport"},
+        "temporalData": {
+          "arrival": {
+            "scheduleAdvertised": "2026-03-27T08:20:00",
+            "realtimeActual": "2026-03-27T08:28:00",
+            "realtimeAdvertisedLateness": 8,
+            "isCancelled": false
+          },
+          "departure": {
+            "scheduleAdvertised": "2026-03-27T08:22:00",
+            "realtimeActual": "2026-03-27T08:30:00",
+            "realtimeAdvertisedLateness": 8,
+            "isCancelled": false
+          }
+        },
+        "locationMetadata": {}
+      },
+      {
+        "location": {"shortCodes": ["BTN"], "longCodes": ["BRIGHTON"], "description": "Brighton"},
+        "temporalData": {
+          "arrival": {
+            "scheduleAdvertised": "2026-03-27T09:00:00",
+            "realtimeActual": "2026-03-27T09:12:00",
+            "realtimeAdvertisedLateness": 12,
+            "isCancelled": false,
+            "cancellationReasonCode": null
+          },
+          "departure": null
+        },
+        "locationMetadata": {"platform": {"planned": "4", "forecast": null, "actual": "4"}}
+      }
+    ]
+  }
 }

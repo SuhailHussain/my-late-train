@@ -19,8 +19,7 @@ def test_resolve_env_missing_raises(monkeypatch):
 
 
 def test_load_config(tmp_path, monkeypatch):
-    monkeypatch.setenv("RTT_USER", "rtt_user")
-    monkeypatch.setenv("RTT_PASS", "rtt_pass")
+    monkeypatch.setenv("RTT_TOKEN", "my-refresh-token")
     monkeypatch.setenv("HSP_USER", "hsp_user")
     monkeypatch.setenv("HSP_PASS", "hsp_pass")
 
@@ -41,9 +40,8 @@ def test_load_config(tmp_path, monkeypatch):
 
         apis:
           rtt:
-            base_url: "https://api.rtt.io/api/v1/json"
-            username: "${RTT_USER}"
-            password: "${RTT_PASS}"
+            base_url: "https://data.rtt.io"
+            refresh_token: "${RTT_TOKEN}"
           hsp:
             base_url: "https://hsp-prod.rockshore.net/api/v1"
             username: "${HSP_USER}"
@@ -67,8 +65,8 @@ def test_load_config(tmp_path, monkeypatch):
     assert config.route.service_uids == []
     assert config.commute_windows.morning.start == "07:30"
     assert config.commute_windows.evening.end == "19:00"
-    assert config.rtt.username == "rtt_user"
-    assert config.rtt.password == "rtt_pass"
+    assert config.rtt.refresh_token == "my-refresh-token"
+    assert config.rtt.base_url == "https://data.rtt.io"
     assert config.hsp.username == "hsp_user"
     assert config.hsp.base_url == "https://hsp-prod.rockshore.net/api/v1"
     assert config.log_level == "DEBUG"
@@ -81,8 +79,7 @@ def test_load_config_missing_file(tmp_path):
 
 
 def test_load_config_missing_credential_raises(tmp_path, monkeypatch):
-    monkeypatch.delenv("RTT_USER", raising=False)
-    monkeypatch.setenv("RTT_PASS", "pass")
+    monkeypatch.delenv("RTT_REFRESH_TOKEN", raising=False)
     monkeypatch.setenv("HSP_USER", "user")
     monkeypatch.setenv("HSP_PASS", "pass")
 
@@ -101,9 +98,8 @@ def test_load_config_missing_credential_raises(tmp_path, monkeypatch):
             end: "19:00"
         apis:
           rtt:
-            base_url: "https://api.rtt.io/api/v1/json"
-            username: "${RTT_USER}"
-            password: "${RTT_PASS}"
+            base_url: "https://data.rtt.io"
+            refresh_token: "${RTT_REFRESH_TOKEN}"
           hsp:
             base_url: "https://hsp-prod.rockshore.net/api/v1"
             username: "${HSP_USER}"
@@ -114,5 +110,5 @@ def test_load_config_missing_credential_raises(tmp_path, monkeypatch):
           path: "./data/late_train.db"
     """))
 
-    with pytest.raises(EnvironmentError, match="RTT_USER"):
+    with pytest.raises(EnvironmentError, match="RTT_REFRESH_TOKEN"):
         load_config(config_file)

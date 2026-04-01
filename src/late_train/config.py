@@ -61,7 +61,15 @@ class CommuteWindows:
 
 
 @dataclass
+class RTTConfig:
+    """RTT API config — uses OAuth2 Bearer token auth."""
+    base_url: str
+    refresh_token: str  # Long-lived token used to obtain short-lived access tokens
+
+
+@dataclass
 class ApiCredentials:
+    """Generic HTTP Basic auth credentials (used by HSP)."""
     base_url: str
     username: str
     password: str
@@ -78,7 +86,7 @@ class RouteConfig:
 class Config:
     route: RouteConfig
     commute_windows: CommuteWindows
-    rtt: ApiCredentials
+    rtt: RTTConfig
     hsp: ApiCredentials
     attribution_csv_directory: Path
     database_path: Path
@@ -112,10 +120,9 @@ def load_config(path: Path | None = None) -> Config:
         evening=CommuteWindow(**raw["commute_windows"]["evening"]),
     )
 
-    rtt = ApiCredentials(
+    rtt = RTTConfig(
         base_url=raw["apis"]["rtt"]["base_url"].rstrip("/"),
-        username=raw["apis"]["rtt"]["username"],
-        password=raw["apis"]["rtt"]["password"],
+        refresh_token=raw["apis"]["rtt"]["refresh_token"],
     )
 
     hsp = ApiCredentials(

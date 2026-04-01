@@ -1,0 +1,15 @@
+2026-04-01 23:33:08,755 INFO httpx: HTTP Request: GET https://data.rtt.io/api/get_access_token "HTTP/1.1 200 OK"
+2026-04-01 23:33:09,548 INFO httpx: HTTP Request: GET https://data.rtt.io/rtt/location?code=gb-nr%3ALBG&filterTo=gb-nr%3ABTN&timeFrom=2026-04-01T23%3A33%3A00&timeTo=2026-04-01T23%3A59%3A00 "HTTP/1.1 200 OK"
+2026-04-01 23:33:09,548 INFO late_train.capture: No candidate services found for LBG→BTN on 2026-04-01
+2026-04-01 23:34:22,688 INFO late_train.backfill: Backfilling week 1/8: 2026-03-23 to 2026-03-29
+2026-04-01 23:34:22,809 INFO httpx: HTTP Request: POST https://hsp-prod.rockshore.net/api/v1/serviceMetrics "HTTP/1.1 401 "
+2026-04-01 23:34:22,810 ERROR late_train.backfill: serviceMetrics failed for morning window 2026-03-23–2026-03-29: Client error '401 ' for url 'https://hsp-prod.rockshore.net/api/v1/serviceMetrics'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-04-01 23:34:22,832 INFO httpx: HTTP Request: POST https://hsp-prod.rockshore.net/api/v1/serviceMetrics "HTTP/1.1 429 Too Many Requests"
+2026-04-01 23:34:22,832 WARNING late_train.hsp: HSP rate limited, sleeping 60s
+2026-04-01 23:35:23,564 INFO httpx: HTTP Request: POST https://hsp-prod.rockshore.net/api/v1/serviceMetrics "HTTP/1.1 401 "
+2026-04-01 23:35:23,564 ERROR late_train.backfill: serviceMetrics failed for evening window 2026-03-23–2026-03-29: Client error '401 ' for url 'https://hsp-prod.rockshore.net/api/v1/serviceMetrics'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
+2026-04-01 23:35:23,564 INFO late_train.backfill: Backfilling week 2/8: 2026-03-16 to 2026-03-22
+2026-04-01 23:35:23,586 INFO httpx: HTTP Request: POST https://hsp-prod.rockshore.net/api/v1/serviceMetrics "HTTP/1.1 429 Too Many Requests"
+2026-04-01 23:35:23,586 WARNING late_train.hsp: HSP rate limited, sleeping 60s

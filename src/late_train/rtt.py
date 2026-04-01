@@ -1,43 +1,93 @@
-"""Realtime Trains API client.
+"""Realtime Trains API client (next-generation API, api-portal.rtt.io).
 
-RTT API docs: https://www.realtimetrains.co.uk/about/developer/pull/docs/
+API spec: https://realtimetrains.github.io/api-specification/
+Base URL: https://data.rtt.io
 
-Authentication: HTTP Basic (username/password from api.rtt.io registration).
-Time format: "0723" or "0723H" — the H suffix means 30 seconds past the minute.
+Authentication: OAuth2 Bearer tokens.
+  - A long-lived refresh token is exchanged for a short-lived access token
+    via GET /api/get_access_token.
+  - The access token is cached and refreshed automatically when it expires.
+
+Location codes use the format "gb-nr:CRS" (e.g. "gb-nr:LBG").
+Times in responses are ISO 8601 datetimes. Lateness is pre-computed in minutes.
 """
 from __future__ import annotations
 
 import logging
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-_MAX_RETRIES = 3
-_RETRY_DELAYS = [1, 2, 4]  # seconds
+_RETRY_DELAYS = [1, 2, 4]
+_NAMESPACE = "gb-nr"
 
 
-def _make_client(base_url: str, username: str, password: str) -> httpx.Client:
+# ---------------------------------------------------------------------------
+# Auth — Bearer token with automatic refresh
+# ---------------------------------------------------------------------------
+
+class _RTTAuth(httpx.Auth):
+    """httpx Auth handler that transparently refreshes the short-lived access token."""
+
+    def __init__(self, base_url: str, refresh_token: str) -> None:
+        self._base_url = base_url
+        self._refresh_token = refresh_token
+        self._access_token: str | None = None
+        self._valid_until: datetime | None = None
+
+    def _needs_refresh(self) -> bool:
+        if not self._access_token or not self._valid_until:
+            return True
+        return datetime.now(timezone.utc) >= self._valid_until - timedelta(seconds=60)
+
+    def _do_refresh(self) -> None:
+        logger.debug("Refreshing RTT access token")
+        resp = httpx.get(
+            f"{self._base_url}/api/get_access_token",
+            headers={"Authorization": f"Bearer {self._refresh_token}"},
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        self._access_token = data["token"]
+        self._valid_until = datetime.fromisoformat(
+            data["validUntil"].replace("Z", "+00:00")
+        )
+        logger.debug("RTT access token valid until %s", self._valid_until.isoformat())
+
+    def auth_flow(self, request: httpx.Request):
+        if self._needs_refresh():
+            self._do_refresh()
+        request.headers["Authorization"] = f"Bearer {self._access_token}"
+        yield request
+
+
+def _make_client(base_url: str, refresh_token: str) -> httpx.Client:
     return httpx.Client(
         base_url=base_url,
-        auth=(username, password),
+        auth=_RTTAuth(base_url, refresh_token),
         timeout=30.0,
         headers={"Accept": "application/json"},
     )
 
 
+# ---------------------------------------------------------------------------
+# HTTP helpers
+# ---------------------------------------------------------------------------
+
 def _request(client: httpx.Client, method: str, path: str, **kwargs) -> dict:
-    """Make an HTTP request with retry logic for transient errors."""
+    """Make a request with retry logic for transient errors."""
     for attempt, delay in enumerate(_RETRY_DELAYS + [None], start=1):
         try:
             resp = client.request(method, path, **kwargs)
         except (httpx.TimeoutException, httpx.ConnectError) as exc:
             if delay is None:
                 raise
-            logger.warning("RTT request attempt %d failed (%s), retrying in %ds", attempt, exc, delay)
+            logger.warning("RTT attempt %d failed (%s), retrying in %ds", attempt, exc, delay)
             time.sleep(delay)
             continue
 
@@ -55,17 +105,38 @@ def _request(client: httpx.Client, method: str, path: str, **kwargs) -> dict:
             continue
 
         resp.raise_for_status()
+        if resp.status_code == 204:
+            return {}
         return resp.json()
 
-    # Should not reach here
     raise RuntimeError("RTT request failed after all retries")
 
 
-def parse_rtt_time(raw: Optional[str]) -> Optional[str]:
-    """Convert RTT time string to HH:MM.
+# ---------------------------------------------------------------------------
+# Parsing helpers
+# ---------------------------------------------------------------------------
 
-    RTT times are four digits optionally followed by 'H' (meaning :30s past).
-    Examples: "0723" → "07:23", "0723H" → "07:23", None → None.
+def _get_crs(location: dict) -> str:
+    """Extract CRS code from a GeographicLocation dict (shortCodes field)."""
+    codes = location.get("shortCodes") or []
+    return codes[0].upper() if codes else ""
+
+
+def _iso_to_hhmm(dt_str: Optional[str]) -> Optional[str]:
+    """Convert ISO 8601 datetime string to HH:MM."""
+    if not dt_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        return dt.strftime("%H:%M")
+    except (ValueError, AttributeError):
+        return None
+
+
+# Kept for HSP client which still uses the old 4-digit time format
+def parse_rtt_time(raw: Optional[str]) -> Optional[str]:
+    """Convert old-style RTT time string ('0723' or '0723H') to HH:MM.
+    Used by the HSP client which returns times in this format.
     """
     if not raw:
         return None
@@ -75,22 +146,17 @@ def parse_rtt_time(raw: Optional[str]) -> Optional[str]:
     return f"{digits[:2]}:{digits[2:]}"
 
 
-def _time_to_minutes(hhmm: Optional[str]) -> Optional[int]:
-    """Convert HH:MM to minutes since midnight."""
-    if not hhmm:
-        return None
-    h, m = hhmm.split(":")
-    return int(h) * 60 + int(m)
-
-
 def compute_delay(scheduled: Optional[str], actual: Optional[str]) -> Optional[int]:
-    """Return delay in minutes (positive = late). Handles overnight wrap-around."""
-    s = _time_to_minutes(scheduled)
-    a = _time_to_minutes(actual)
-    if s is None or a is None:
+    """Compute delay in minutes from HH:MM strings. Handles overnight wrap.
+    Used by the HSP client.
+    """
+    def to_mins(hhmm: str) -> int:
+        h, m = hhmm.split(":")
+        return int(h) * 60 + int(m)
+
+    if not scheduled or not actual:
         return None
-    diff = a - s
-    # Handle midnight wrap (e.g. scheduled 23:55, actual 00:03)
+    diff = to_mins(actual) - to_mins(scheduled)
     if diff < -120:
         diff += 24 * 60
     if diff > 120:
@@ -98,45 +164,77 @@ def compute_delay(scheduled: Optional[str], actual: Optional[str]) -> Optional[i
     return diff
 
 
-def search_station(client: httpx.Client, station: str, run_date: date) -> list[dict]:
-    """Return all services departing from station on a given date.
+# ---------------------------------------------------------------------------
+# API calls
+# ---------------------------------------------------------------------------
 
-    GET /search/{station}/{YYYY}/{MM}/{DD}
+def search_location(
+    client: httpx.Client,
+    station: str,
+    destination: str,
+    time_from: datetime,
+    time_to: datetime,
+) -> list[dict]:
+    """Return services departing from station towards destination in the given window.
+
+    GET /rtt/location?code=gb-nr:LBG&filterTo=gb-nr:BTN&timeFrom=...&timeTo=...
     """
-    path = f"/search/{station.upper()}/{run_date.year}/{run_date.month:02d}/{run_date.day:02d}"
-    data = _request(client, "GET", path)
+    params = {
+        "code": f"{_NAMESPACE}:{station.upper()}",
+        "filterTo": f"{_NAMESPACE}:{destination.upper()}",
+        "timeFrom": time_from.strftime("%Y-%m-%dT%H:%M:%S"),
+        "timeTo": time_to.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    data = _request(client, "GET", "/rtt/location", params=params)
     services = data.get("services") or []
-    # Filter to passenger services only
-    return [s for s in services if s.get("isPassenger", True)]
+    return [
+        s for s in services
+        if s.get("scheduleMetadata", {}).get("inPassengerService", True)
+    ]
 
 
-def get_service_detail(client: httpx.Client, service_uid: str, run_date: date) -> dict:
-    """Return full journey detail for a specific service UID on a given date.
+def get_service_detail(
+    client: httpx.Client,
+    identity: str,
+    run_date: date,
+    namespace: str = _NAMESPACE,
+) -> dict:
+    """Return full journey detail for a service identity on a given date.
 
-    GET /service/{serviceUid}/{YYYY}/{MM}/{DD}
+    GET /rtt/service?namespace=gb-nr&identity=W12345&departureDate=2026-04-01
     """
-    path = f"/service/{service_uid}/{run_date.year}/{run_date.month:02d}/{run_date.day:02d}"
-    return _request(client, "GET", path)
+    params = {
+        "namespace": namespace,
+        "identity": identity,
+        "departureDate": run_date.isoformat(),
+    }
+    return _request(client, "GET", "/rtt/service", params=params)
 
+
+# ---------------------------------------------------------------------------
+# Observation extraction
+# ---------------------------------------------------------------------------
 
 def extract_observation(
-    service: dict,
+    service_response: dict,
     origin: str,
     destination: str,
     run_date: date,
     captured_at: str,
 ) -> Optional[dict]:
-    """Extract a normalised observation row from a service detail response.
+    """Extract a normalised observation row from a /rtt/service response.
 
-    Returns None if the service does not call at both origin and destination.
+    Returns None if the service doesn't call at both origin and destination.
     """
+    service = service_response.get("service") or service_response
     locations = service.get("locations") or []
+    meta = service.get("scheduleMetadata") or {}
+    identity = meta.get("identity", "")
 
     origin_loc = None
     dest_loc = None
-
     for loc in locations:
-        crs = (loc.get("crs") or "").upper()
+        crs = _get_crs(loc.get("location") or {})
         if crs == origin.upper() and origin_loc is None:
             origin_loc = loc
         if crs == destination.upper() and dest_loc is None:
@@ -145,76 +243,52 @@ def extract_observation(
     if origin_loc is None or dest_loc is None:
         return None
 
-    service_uid = service.get("serviceUid") or service.get("trainIdentity", "")
-
     # Departure from origin
-    sched_dep = parse_rtt_time(
-        origin_loc.get("gbttBookedDeparture") or origin_loc.get("gbttBookedArrival")
-    )
-    actual_dep_raw = origin_loc.get("realtimeDeparture") or origin_loc.get("realtimeArrival")
-    actual_dep = parse_rtt_time(actual_dep_raw)
-    dep_is_actual = bool(
-        origin_loc.get("realtimeDepartureActual") or origin_loc.get("realtimeArrivalActual")
-    )
+    dep = (origin_loc.get("temporalData") or {}).get("departure") or {}
+    sched_dep = _iso_to_hhmm(dep.get("scheduleAdvertised"))
+    actual_dep = _iso_to_hhmm(dep.get("realtimeActual"))
 
     # Arrival at destination
-    sched_arr = parse_rtt_time(
-        dest_loc.get("gbttBookedArrival") or dest_loc.get("gbttBookedDeparture")
-    )
-    actual_arr_raw = dest_loc.get("realtimeArrival") or dest_loc.get("realtimeDeparture")
-    actual_arr = parse_rtt_time(actual_arr_raw)
-    arr_is_actual = bool(
-        dest_loc.get("realtimeArrivalActual") or dest_loc.get("realtimeDepartureActual")
-    )
+    arr = (dest_loc.get("temporalData") or {}).get("arrival") or {}
+    sched_arr = _iso_to_hhmm(arr.get("scheduleAdvertised"))
+    actual_arr = _iso_to_hhmm(arr.get("realtimeActual"))
 
-    # Use arrival delay at destination as the primary delay metric
-    delay = compute_delay(sched_arr, actual_arr)
+    # Delay — pre-computed by RTT as minutes late vs advertised schedule
+    delay = arr.get("realtimeAdvertisedLateness")
     if delay is None:
-        delay = compute_delay(sched_dep, actual_dep)
+        delay = dep.get("realtimeAdvertisedLateness")
 
-    # Cancellation — check destination call and service-level fields
-    cancelled = (
-        dest_loc.get("displayAs") == "CANCELLED_CALL"
-        or origin_loc.get("displayAs") == "CANCELLED_CALL"
-        or service.get("serviceType") == "cancelled"
+    # Cancellation
+    cancelled = bool(arr.get("isCancelled") or dep.get("isCancelled"))
+    cancel_code = arr.get("cancellationReasonCode") or dep.get("cancellationReasonCode")
+
+    # Platform — PlannedActualData: {planned, forecast, actual}
+    platform_data = (origin_loc.get("locationMetadata") or {}).get("platform") or {}
+    platform = platform_data.get("actual") or platform_data.get("planned")
+    platform_changed = bool(
+        platform_data.get("actual")
+        and platform_data.get("planned")
+        and platform_data.get("actual") != platform_data.get("planned")
     )
 
-    cancel_code = (
-        dest_loc.get("cancelReasonCode")
-        or origin_loc.get("cancelReasonCode")
-        or service.get("cancelReasonCode")
-    )
-    cancel_text = (
-        dest_loc.get("cancelReasonShortText")
-        or origin_loc.get("cancelReasonShortText")
-        or service.get("cancelReasonShortText")
-    )
-
-    # Platform
-    platform = origin_loc.get("platform")
-    platform_booked = origin_loc.get("platformConfirmed")
-    platform_changed = bool(platform and not platform_booked and origin_loc.get("platformChanged"))
-
-    operator = service.get("atocCode") or service.get("trainOperatorCode") or ""
-
-    if sched_dep is None:
-        logger.debug("No scheduled departure for %s on %s — skipping", service_uid, run_date)
+    if sched_dep is None and sched_arr is None:
+        logger.debug("No scheduled times for %s on %s — skipping", identity, run_date)
         return None
 
     return {
-        "service_uid": service_uid,
+        "service_uid": identity,
         "run_date": run_date.isoformat(),
-        "scheduled_departure": sched_dep,
+        "scheduled_departure": sched_dep or "",
         "actual_departure": actual_dep,
-        "scheduled_arrival": sched_arr or sched_dep,
+        "scheduled_arrival": sched_arr or sched_dep or "",
         "actual_arrival": actual_arr,
         "delay_mins": delay,
         "platform": platform,
         "platform_changed": int(platform_changed),
         "cancelled": int(cancelled),
         "cancel_reason_code": cancel_code,
-        "cancel_reason_text": cancel_text,
-        "is_actual": int(arr_is_actual or dep_is_actual),
+        "cancel_reason_text": None,
+        "is_actual": int(actual_arr is not None or actual_dep is not None),
         "source": "rtt",
         "captured_at": captured_at,
     }
