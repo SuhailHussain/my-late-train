@@ -1,0 +1,15 @@
+# Credentials — never commit
+.env
+
+# Database and logs
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
