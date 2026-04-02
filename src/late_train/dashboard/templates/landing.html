@@ -1,5 +1,5 @@
 <!DOCTYPE html>
- <html lang="en">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,67 +12,122 @@
     <div class="w-full max-w-md">
 
       <!-- Logo / Title -->
-      <div class="text-center mb-10">
+      <div class="text-center mb-8">
         <div class="text-5xl mb-4">🚂</div>
         <h1 class="text-3xl font-bold tracking-tight">My Late Train</h1>
         <p class="text-gray-500 dark:text-gray-400 mt-2 text-sm">Track your commute. Understand your delays.</p>
       </div>
 
-      <!-- Route form -->
-      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
-        <form id="routeForm" onsubmit="go(event)">
+      <!-- Step indicators -->
+      <div class="flex items-center justify-center gap-2 mb-6 text-xs font-semibold uppercase tracking-widest">
+        <span id="ind1" class="text-blue-600 dark:text-blue-400">Route</span>
+        <span class="text-gray-300 dark:text-gray-600">›</span>
+        <span id="ind2" class="text-gray-400 dark:text-gray-600">Time</span>
+        <span class="text-gray-300 dark:text-gray-600">›</span>
+        <span id="ind3" class="text-gray-400 dark:text-gray-600">Train</span>
+      </div>
 
-          <!-- From -->
-          <div class="mb-4">
-            <label for="fromInput" class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1.5">From</label>
-            <div class="relative">
-              <input
-                id="fromInput"
-                type="text"
-                autocomplete="off"
-                placeholder="e.g. London Bridge"
-                class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-              >
-              <input type="hidden" id="fromCrs">
-              <div id="fromDropdown" class="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto"></div>
-            </div>
+      <!-- Step 1: Route picker -->
+      <div id="step1" class="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Step 1 — Your route</h2>
+
+        <!-- From -->
+        <div class="mb-4">
+          <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1.5">From</label>
+          <div class="relative">
+            <input id="fromInput" type="text" autocomplete="off" placeholder="e.g. Rochdale"
+              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="hidden" id="fromCrs">
+            <div id="fromDropdown" class="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto"></div>
           </div>
+        </div>
 
-          <!-- Swap button -->
-          <div class="flex justify-center my-3">
-            <button
-              type="button"
-              onclick="swapStations()"
-              class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition-colors"
-              title="Swap stations"
-            >⇅</button>
+        <!-- Swap -->
+        <div class="flex justify-center my-3">
+          <button type="button" onclick="swapStations()"
+            class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition-colors"
+            title="Swap stations">⇅</button>
+        </div>
+
+        <!-- To -->
+        <div class="mb-6">
+          <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1.5">To</label>
+          <div class="relative">
+            <input id="toInput" type="text" autocomplete="off" placeholder="e.g. Manchester Victoria"
+              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="hidden" id="toCrs">
+            <div id="toDropdown" class="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto"></div>
           </div>
+        </div>
 
-          <!-- To -->
-          <div class="mb-6">
-            <label for="toInput" class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1.5">To</label>
-            <div class="relative">
-              <input
-                id="toInput"
-                type="text"
-                autocomplete="off"
-                placeholder="e.g. Brighton"
-                class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-              >
-              <input type="hidden" id="toCrs">
-              <div id="toDropdown" class="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto"></div>
-            </div>
+        <p id="step1Error" class="text-red-500 text-sm text-center mb-3 hidden">Please select both a departure and arrival station.</p>
+        <button onclick="goStep2()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors text-base">
+          Next →
+        </button>
+      </div>
+
+      <!-- Step 2: Time + day type -->
+      <div id="step2" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Step 2 — When do you travel?</h2>
+
+        <div class="mb-5">
+          <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1.5">Approximate departure time</label>
+          <select id="timeSelect" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Day type</label>
+          <div class="flex gap-3">
+            <label class="flex-1 flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="days" value="WEEKDAY" checked class="accent-blue-600"> <span class="text-sm">Weekdays</span>
+            </label>
+            <label class="flex-1 flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="days" value="SATURDAY" class="accent-blue-600"> <span class="text-sm">Saturdays</span>
+            </label>
+            <label class="flex-1 flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="days" value="SUNDAY" class="accent-blue-600"> <span class="text-sm">Sundays</span>
+            </label>
           </div>
+        </div>
 
-          <button
-            type="submit"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors text-base"
-          >
-            View my trains →
+        <div class="flex gap-3">
+          <button onclick="goStep(1)" class="flex-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-semibold py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-base">
+            ← Back
           </button>
+          <button onclick="goStep3()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors text-base">
+            Find trains →
+          </button>
+        </div>
+      </div>
 
-          <p id="errorMsg" class="text-red-500 text-sm text-center mt-3 hidden">Please select both a departure and arrival station.</p>
-        </form>
+      <!-- Step 3: Pick your train -->
+      <div id="step3" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Step 3 — Select your train</h2>
+
+        <div id="trainsLoading" class="text-center py-8 text-gray-400">
+          <svg class="animate-spin h-6 w-6 mx-auto mb-2 text-blue-500" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          Loading trains…
+        </div>
+
+        <div id="trainsList" class="hidden space-y-2 mb-5"></div>
+
+        <p id="noTrainsMsg" class="hidden text-center text-yellow-600 dark:text-yellow-400 text-sm py-4">
+          No trains found around that time. Try adjusting the time in the previous step.
+        </p>
+        <p id="trainsErrorMsg" class="hidden text-center text-red-500 text-sm py-4"></p>
+
+        <div class="flex gap-3 mt-4">
+          <button onclick="goStep(2)" class="flex-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-semibold py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-base">
+            ← Back
+          </button>
+          <button id="searchBtn" onclick="goResults()" disabled
+            class="flex-1 bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors text-base opacity-40 cursor-not-allowed">
+            Search →
+          </button>
+        </div>
       </div>
 
     </div>
@@ -84,11 +139,25 @@
 
 <script>
 let stations = [];
+let selectedDeparture = null;
 
-// Fetch station list once
+// Populate time dropdown: 05:00 → 23:30 in 30-min steps
+const timeSelect = document.getElementById('timeSelect');
+for (let h = 5; h < 24; h++) {
+  for (let m of [0, 30]) {
+    const hh = String(h).padStart(2, '0');
+    const mm = String(m).padStart(2, '0');
+    const opt = document.createElement('option');
+    opt.value = hh + mm;
+    opt.textContent = hh + ':' + mm;
+    if (h === 8 && m === 0) opt.selected = true;
+    timeSelect.appendChild(opt);
+  }
+}
+
+// Load stations
 fetch('/api/stations').then(r => r.json()).then(data => {
   stations = data;
-  // Pre-fill from localStorage if available
   const saved = JSON.parse(localStorage.getItem('mlt_route') || 'null');
   if (saved) {
     setStation('from', saved.fromName, saved.fromCrs);
@@ -108,15 +177,12 @@ function makeAutocomplete(inputId, dropdownId, crsId) {
 
   input.addEventListener('input', () => {
     const q = input.value.trim().toLowerCase();
-    crsInput.value = '';  // clear CRS until user selects
+    crsInput.value = '';
     if (q.length < 1) { dropdown.classList.add('hidden'); return; }
-
     const matches = stations.filter(s =>
       s.name.toLowerCase().includes(q) || s.crs.toLowerCase().startsWith(q)
     ).slice(0, 8);
-
     if (!matches.length) { dropdown.classList.add('hidden'); return; }
-
     dropdown.innerHTML = matches.map(s => `
       <div class="px-4 py-2.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600 flex justify-between items-center text-sm"
            data-name="${s.name}" data-crs="${s.crs}">
@@ -125,7 +191,6 @@ function makeAutocomplete(inputId, dropdownId, crsId) {
       </div>
     `).join('');
     dropdown.classList.remove('hidden');
-
     dropdown.querySelectorAll('[data-crs]').forEach(el => {
       el.addEventListener('click', () => {
         input.value = el.dataset.name;
@@ -135,14 +200,11 @@ function makeAutocomplete(inputId, dropdownId, crsId) {
     });
   });
 
-  // Close dropdown on outside click
   document.addEventListener('click', e => {
-    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+    if (!input.contains(e.target) && !dropdown.contains(e.target))
       dropdown.classList.add('hidden');
-    }
   });
 
-  // Keyboard navigation
   input.addEventListener('keydown', e => {
     const items = dropdown.querySelectorAll('[data-crs]');
     const active = dropdown.querySelector('.bg-blue-100');
@@ -181,21 +243,97 @@ function swapStations() {
   setStation('to', fromName, fromCrs);
 }
 
-function go(e) {
-  e.preventDefault();
+function goStep(n) {
+  document.getElementById('step1').classList.toggle('hidden', n !== 1);
+  document.getElementById('step2').classList.toggle('hidden', n !== 2);
+  document.getElementById('step3').classList.toggle('hidden', n !== 3);
+  ['ind1','ind2','ind3'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.className = (i + 1 === n)
+      ? 'text-blue-600 dark:text-blue-400'
+      : 'text-gray-400 dark:text-gray-600';
+  });
+}
+
+function goStep2() {
   const fromCrs = document.getElementById('fromCrs').value;
   const toCrs   = document.getElementById('toCrs').value;
-  const fromName = document.getElementById('fromInput').value.trim();
-  const toName   = document.getElementById('toInput').value.trim();
-
   if (!fromCrs || !toCrs) {
-    document.getElementById('errorMsg').classList.remove('hidden');
+    document.getElementById('step1Error').classList.remove('hidden');
     return;
   }
-  document.getElementById('errorMsg').classList.add('hidden');
-
+  document.getElementById('step1Error').classList.add('hidden');
+  const fromName = document.getElementById('fromInput').value;
+  const toName   = document.getElementById('toInput').value;
   localStorage.setItem('mlt_route', JSON.stringify({ fromCrs, fromName, toCrs, toName }));
-  window.location.href = `/dashboard?from=${fromCrs}&to=${toCrs}`;
+  goStep(2);
+}
+
+function goStep3() {
+  const fromCrs = document.getElementById('fromCrs').value;
+  const toCrs   = document.getElementById('toCrs').value;
+  const around  = document.getElementById('timeSelect').value;
+  const days    = document.querySelector('input[name="days"]:checked').value;
+
+  goStep(3);
+  selectedDeparture = null;
+  document.getElementById('searchBtn').disabled = true;
+  document.getElementById('searchBtn').classList.add('opacity-40', 'cursor-not-allowed');
+  document.getElementById('trainsLoading').classList.remove('hidden');
+  document.getElementById('trainsList').classList.add('hidden');
+  document.getElementById('noTrainsMsg').classList.add('hidden');
+  document.getElementById('trainsErrorMsg').classList.add('hidden');
+
+  fetch(`/api/trains?from=${fromCrs}&to=${toCrs}&around=${around}&days=${days}`)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('trainsLoading').classList.add('hidden');
+      const trains = Array.isArray(data) ? data : (data.trains || []);
+      if (data.error && !trains.length) {
+        document.getElementById('trainsErrorMsg').textContent = 'Could not load trains: ' + data.error;
+        document.getElementById('trainsErrorMsg').classList.remove('hidden');
+      } else if (!trains.length) {
+        document.getElementById('noTrainsMsg').classList.remove('hidden');
+      } else {
+        renderTrains(trains);
+      }
+    })
+    .catch(() => {
+      document.getElementById('trainsLoading').classList.add('hidden');
+      document.getElementById('trainsErrorMsg').textContent = 'Could not connect to server.';
+      document.getElementById('trainsErrorMsg').classList.remove('hidden');
+    });
+}
+
+function renderTrains(trains) {
+  const list = document.getElementById('trainsList');
+  list.innerHTML = trains.map(t => {
+    const dep = t.departure.length === 4
+      ? t.departure.slice(0,2) + ':' + t.departure.slice(2)
+      : t.departure;
+    return `
+      <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
+        <input type="radio" name="train" value="${t.departure}" class="accent-blue-600" onchange="selectTrain('${t.departure}')">
+        <span class="font-mono font-semibold text-base">${dep}</span>
+        <span class="text-gray-500 dark:text-gray-400 text-sm">${t.operator || ''}</span>
+      </label>`;
+  }).join('');
+  list.classList.remove('hidden');
+}
+
+function selectTrain(dep) {
+  selectedDeparture = dep;
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = false;
+  btn.classList.remove('opacity-40', 'cursor-not-allowed');
+}
+
+function goResults() {
+  if (!selectedDeparture) return;
+  const fromCrs = document.getElementById('fromCrs').value;
+  const toCrs   = document.getElementById('toCrs').value;
+  const days    = document.querySelector('input[name="days"]:checked').value;
+  window.location.href = `/results?from=${fromCrs}&to=${toCrs}&departure=${selectedDeparture}&days=${days}`;
 }
 </script>
 

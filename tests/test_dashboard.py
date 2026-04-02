@@ -1,12 +1,26 @@
 """Tests for the Flask dashboard API endpoints."""
+
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
-from late_train.config import Config, RouteConfig, CommuteWindows, CommuteWindow, RTTConfig, ApiCredentials
+from late_train.config import (
+    ApiCredentials,
+    CommuteWindow,
+    CommuteWindows,
+    Config,
+    RouteConfig,
+    RTTConfig,
+)
 from late_train.dashboard.app import create_app
-from late_train.db import init_db, get_connection, upsert_observation, upsert_hsp_metrics, insert_attributions
+from late_train.db import (
+    get_connection,
+    init_db,
+    insert_attributions,
+    upsert_hsp_metrics,
+    upsert_observation,
+)
 
 
 def _make_config(tmp_path: Path) -> Config:
@@ -63,39 +77,47 @@ def client(tmp_path):
         upsert_observation(conn, _obs(run_date="2026-03-11", delay=0))
         upsert_observation(conn, _obs(run_date="2026-03-12", cancelled=1))
 
-        upsert_hsp_metrics(conn, {
-            "origin": "LBG",
-            "destination": "BTN",
-            "from_time": "0700",
-            "to_time": "0930",
-            "period_start": "2026-01-01",
-            "period_end": "2026-01-31",
-            "total_services": 20,
-            "on_time_count": 12,
-            "late_1_5_count": 3,
-            "late_5_10_count": 2,
-            "late_10_15_count": 1,
-            "late_15_20_count": 1,
-            "late_20_30_count": 1,
-            "late_30_plus_count": 0,
-            "cancel_count": 0,
-            "retrieved_at": _now(),
-        })
+        upsert_hsp_metrics(
+            conn,
+            {
+                "origin": "LBG",
+                "destination": "BTN",
+                "from_time": "0700",
+                "to_time": "0930",
+                "period_start": "2026-01-01",
+                "period_end": "2026-01-31",
+                "total_services": 20,
+                "on_time_count": 12,
+                "late_1_5_count": 3,
+                "late_5_10_count": 2,
+                "late_10_15_count": 1,
+                "late_15_20_count": 1,
+                "late_20_30_count": 1,
+                "late_30_plus_count": 0,
+                "cancel_count": 0,
+                "retrieved_at": _now(),
+            },
+        )
 
-        insert_attributions(conn, [{
-            "incident_number": "INC001",
-            "run_date": "2026-03-10",
-            "trust_train_id": "1234567890",
-            "service_uid": "W12345",
-            "stanox": "33081",
-            "event_type": "D",
-            "delay_mins": 20.0,
-            "reason_code": "IA",
-            "reason_text": "Signal failure",
-            "responsible_org": "Network Rail",
-            "financial_period": "2025-26 P12",
-            "csv_filename": "test.csv",
-        }])
+        insert_attributions(
+            conn,
+            [
+                {
+                    "incident_number": "INC001",
+                    "run_date": "2026-03-10",
+                    "trust_train_id": "1234567890",
+                    "service_uid": "W12345",
+                    "stanox": "33081",
+                    "event_type": "D",
+                    "delay_mins": 20.0,
+                    "reason_code": "IA",
+                    "reason_text": "Signal failure",
+                    "responsible_org": "Network Rail",
+                    "financial_period": "2025-26 P12",
+                    "csv_filename": "test.csv",
+                }
+            ],
+        )
 
     app = create_app(config)
     app.config["TESTING"] = True
