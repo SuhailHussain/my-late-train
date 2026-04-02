@@ -36,11 +36,12 @@
   <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
       <div>
-        <h1 class="text-xl font-bold tracking-tight">
-          🚂 My Late Train
-        </h1>
+        <a href="/" class="hover:opacity-80 transition-opacity">
+          <h1 class="text-xl font-bold tracking-tight">🚂 My Late Train</h1>
+        </a>
         <p class="text-sm text-gray-500 dark:text-gray-400">
           {{ origin }} → {{ destination }}
+          <a href="/" class="ml-2 text-xs text-blue-500 hover:underline">change</a>
         </p>
       </div>
       <span class="text-sm text-gray-400 dark:text-gray-500" id="last-updated"></span>

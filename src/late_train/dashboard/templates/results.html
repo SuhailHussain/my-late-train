@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Performance — {{ origin }} → {{ destination }} · My Late Train{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <!-- Header -->
+  <div class="mb-6">
+    <a href="/" class="text-sm text-blue-500 hover:underline">← Change journey</a>
+    <h2 class="text-2xl font-bold mt-2">
+      {{ origin }} → {{ destination }}
+    </h2>
+    <p class="text-gray-500 dark:text-gray-400 text-sm mt-1" id="subheader">
+      Loading…
+    </p>
+  </div>
+
+  <!-- Loading state -->
+  <div id="loadingState" class="text-center py-16 text-gray-400">
+    <svg class="animate-spin h-8 w-8 mx-auto mb-3 text-blue-500" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+    </svg>
+    Fetching historical performance data…
+  </div>
+
+  <!-- Error state -->
+  <div id="errorState" class="hidden bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
+    <p class="text-red-600 dark:text-red-400 font-medium mb-1">Couldn't load performance data</p>
+    <p class="text-red-500 dark:text-red-500 text-sm" id="errorMsg">The HSP service may be temporarily unavailable. Try again in a moment.</p>
+    <button onclick="location.reload()" class="mt-4 text-sm text-blue-500 hover:underline">Retry</button>
+  </div>
+
+  <!-- No data state -->
+  <div id="noDataState" class="hidden bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6 text-center">
+    <p class="text-yellow-700 dark:text-yellow-400 font-medium mb-1">No historical data found</p>
+    <p class="text-yellow-600 dark:text-yellow-500 text-sm">There's no HSP data for this service. The route or time may not be recorded, or try a different departure time.</p>
+    <a href="/" class="mt-4 inline-block text-sm text-blue-500 hover:underline">← Try another journey</a>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsState" class="hidden space-y-6">
+
+    <!-- Summary cards -->
+    <div class="grid grid-cols-3 gap-4">
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">On time</p>
+        <p id="cardOnTime" class="text-3xl font-bold text-green-600 dark:text-green-400">—</p>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">Avg late</p>
+        <p id="cardAvgLate" class="text-3xl font-bold text-amber-600 dark:text-amber-400">—</p>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1">Cancelled</p>
+        <p id="cardCancelled" class="text-3xl font-bold text-purple-600 dark:text-purple-400">—</p>
+      </div>
+    </div>
+
+    <!-- Bar chart -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+      <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Delay distribution</h3>
+      <canvas id="delayChart" height="220"></canvas>
+    </div>
+
+    <!-- Footer note -->
+    <p id="footerNote" class="text-xs text-gray-400 dark:text-gray-600 text-center pb-2"></p>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const p = new URLSearchParams(location.search);
+const origin      = p.get('from') || '{{ origin }}';
+const destination = p.get('to')   || '{{ destination }}';
+const departure   = p.get('departure') || '{{ departure }}';
+const days        = p.get('days') || '{{ days }}';
+
+// Friendly labels
+const daysLabel = {WEEKDAY: 'Weekdays', SATURDAY: 'Saturdays', SUNDAY: 'Sundays'}[days] || days;
+const depLabel  = departure.length === 4
+  ? departure.slice(0,2) + ':' + departure.slice(2)
+  : departure;
+
+document.getElementById('subheader').textContent = `${depLabel} · ${daysLabel} · last 6 months`;
+
+function fmt(n) { return n !== null && n !== undefined ? n + '%' : '—'; }
+
+fetch(`/api/performance?from=${origin}&to=${destination}&departure=${departure}&days=${days}`)
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(data => {
+    document.getElementById('loadingState').classList.add('hidden');
+
+    if (data.error && data.total === 0) {
+      document.getElementById('noDataState').classList.remove('hidden');
+      return;
+    }
+    if (data.error) {
+      document.getElementById('errorMsg').textContent = data.error;
+      document.getElementById('errorState').classList.remove('hidden');
+      return;
+    }
+
+    // Cards
+    document.getElementById('cardOnTime').textContent   = fmt(data.pct_on_time);
+    document.getElementById('cardAvgLate').textContent  = data.avg_late_mins !== null ? data.avg_late_mins + ' min' : '—';
+    document.getElementById('cardCancelled').textContent = fmt(data.pct_cancelled);
+
+    // Chart
+    const labels = ['On time', '1–5 min', '5–10 min', '10–15 min', '15–20 min', '20–30 min', '30+ min', 'Cancelled'];
+    const values = [
+      data.pct_on_time,
+      data.pct_late_1_5,
+      data.pct_late_5_10,
+      data.pct_late_10_15,
+      data.pct_late_15_20,
+      data.pct_late_20_30,
+      data.pct_late_30_plus,
+      data.pct_cancelled,
+    ];
+    const colours = [
+      '#16a34a', // green  — on time
+      '#84cc16', // lime   — 1-5
+      '#eab308', // yellow — 5-10
+      '#f97316', // orange — 10-15
+      '#ef4444', // red    — 15-20
+      '#dc2626', // red    — 20-30
+      '#991b1b', // dark   — 30+
+      '#7c3aed', // purple — cancelled
+    ];
+
+    new Chart(document.getElementById('delayChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colours,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.raw}% of journeys`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: { callback: v => v + '%' },
+            grid: { color: 'rgba(156,163,175,0.2)' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+
+    // Footer
+    const fmt_date = d => new Date(d).toLocaleDateString('en-GB', {month:'short', year:'numeric'});
+    document.getElementById('footerNote').textContent =
+      `Based on ${data.total.toLocaleString()} journeys · ${fmt_date(data.from_date)} – ${fmt_date(data.to_date)} · Source: National Rail HSP`;
+
+    document.getElementById('resultsState').classList.remove('hidden');
+  })
+  .catch(err => {
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('errorMsg').textContent = 'Unexpected error: ' + err.message;
+    document.getElementById('errorState').classList.remove('hidden');
+  });
+</script>
+{% endblock %}

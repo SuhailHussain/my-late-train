@@ -103,8 +103,14 @@ def client(tmp_path):
         yield c
 
 
-def test_index_returns_200(client):
+def test_landing_returns_200(client):
     resp = client.get("/")
+    assert resp.status_code == 200
+    assert b"My Late Train" in resp.data
+
+
+def test_dashboard_returns_200(client):
+    resp = client.get("/dashboard?from=LBG&to=BTN")
     assert resp.status_code == 200
     assert b"My Late Train" in resp.data
 

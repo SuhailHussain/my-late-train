@@ -23,12 +23,33 @@ def _setup_logging(level: str, log_file: Path | None = None) -> None:
 
 
 def _cmd_capture(args: argparse.Namespace) -> None:
+    from datetime import date as date_type
     from late_train.config import load_config
     from late_train.capture import run_capture
 
     config = load_config(args.config)
     _setup_logging(config.log_level, config.log_file)
-    result = run_capture(config, force=args.force)
+
+    run_date = None
+    if args.date:
+        run_date = date_type.fromisoformat(args.date)
+
+    if args.days_back:
+        from datetime import timedelta
+        total = 0
+        for i in range(1, args.days_back + 1):
+            d = date_type.today() - timedelta(days=i)
+            # Skip weekends
+            if d.weekday() >= 5:
+                continue
+            result = run_capture(config, force=True, run_date=d)
+            captured = result.get("captured", 0)
+            total += captured
+            print(f"  {d}: {captured} captured")
+        print(f"Total: {total} observations across {args.days_back} days back")
+        return
+
+    result = run_capture(config, force=args.force, run_date=run_date)
     if result.get("skipped"):
         print("Outside commute windows — use --force to capture anyway.")
     else:
@@ -82,6 +103,10 @@ def main() -> None:
     # capture
     p_capture = sub.add_parser("capture", help="Poll RTT API and record today's trains")
     p_capture.add_argument("--force", action="store_true", help="Run even outside commute windows")
+    p_capture.add_argument("--date", type=str, default=None, metavar="YYYY-MM-DD",
+                           help="Capture a specific historical date")
+    p_capture.add_argument("--days-back", type=int, default=0, metavar="N",
+                           help="Backfill the last N weekdays from RTT")
     p_capture.set_defaults(func=_cmd_capture)
 
     # backfill

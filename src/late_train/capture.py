@@ -41,71 +41,94 @@ def _active_window(config: Config) -> tuple[bool, CommuteWindow | None]:
     return False, None
 
 
-def run_capture(config: Config, force: bool = False) -> dict:
+def run_capture(config: Config, force: bool = False, run_date: date | None = None) -> dict:
     """Poll RTT and record observations. Returns a summary dict.
 
     Args:
         config: Loaded configuration.
         force: If True, skip the commute window check (useful for manual runs).
+        run_date: Capture a specific date (defaults to today). When a past date
+                  is given, both commute windows are fetched regardless of force flag.
     """
-    active, window = _active_window(config)
-    if not force and not active:
-        logger.info("Outside commute windows — nothing to capture.")
-        return {"skipped": True}
+    historical = run_date is not None and run_date != date.today()
 
-    init_db(config.database_path)
+    if not historical:
+        active, window = _active_window(config)
+        if not force and not active:
+            logger.info("Outside commute windows — nothing to capture.")
+            return {"skipped": True}
 
-    today = date.today()
+    target_date = run_date or date.today()
     now = datetime.now()
     captured_at = datetime.now(timezone.utc).isoformat()
 
-    summary = {"date": today.isoformat(), "captured": 0, "delayed": 0, "cancelled": 0, "errors": 0}
+    init_db(config.database_path)
 
-    # Determine the search time window
-    if force or window is None:
-        # Use a 2-hour window around now when forced outside commute hours
-        time_from = now.replace(second=0, microsecond=0)
-        from datetime import timedelta
-        time_to = time_from.replace(hour=min(time_from.hour + 2, 23), minute=59)
+    summary = {"date": target_date.isoformat(), "captured": 0, "delayed": 0, "cancelled": 0, "errors": 0}
+
+    # Build list of (time_from, time_to) windows to search
+    if historical:
+        # Fetch all configured commute windows for the historical date
+        windows_to_search = []
+        for _, w in config.commute_windows.as_list():
+            tf = datetime.combine(target_date, datetime.min.time()).replace(
+                hour=int(w.start.split(":")[0]), minute=int(w.start.split(":")[1])
+            )
+            tt = datetime.combine(target_date, datetime.min.time()).replace(
+                hour=int(w.end.split(":")[0]), minute=int(w.end.split(":")[1])
+            )
+            windows_to_search.append((tf, tt))
+    elif force or window is None:
+        # Forced outside commute hours: 2-hour window from now
+        tf = now.replace(second=0, microsecond=0)
+        tt = now.replace(hour=min(now.hour + 2, 23), minute=59, second=0, microsecond=0)
+        windows_to_search = [(tf, tt)]
     else:
-        time_from = now.replace(
+        tf = now.replace(
             hour=int(window.start.split(":")[0]),
             minute=int(window.start.split(":")[1]),
             second=0, microsecond=0,
         )
-        time_to = now.replace(
+        tt = now.replace(
             hour=int(window.end.split(":")[0]),
             minute=int(window.end.split(":")[1]),
             second=0, microsecond=0,
         )
+        windows_to_search = [(tf, tt)]
 
     with _make_client(config.rtt.base_url, config.rtt.refresh_token) as client:
-        try:
-            services = search_location(
-                client,
-                config.route.origin,
-                config.route.destination,
-                time_from,
-                time_to,
-            )
-        except Exception as exc:
-            logger.error("Failed to search location %s: %s", config.route.origin, exc)
-            return {"error": str(exc)}
+        # Collect all candidate service IDs across all windows (deduplicated)
+        seen_ids: set[str] = set()
+        services: list[dict] = []
+        for time_from, time_to in windows_to_search:
+            try:
+                batch = search_location(
+                    client,
+                    config.route.origin,
+                    config.route.destination,
+                    time_from,
+                    time_to,
+                )
+                services.extend(batch)
+            except Exception as exc:
+                logger.error("Failed to search location %s: %s", config.route.origin, exc)
+                return {"error": str(exc)}
 
-        # Extract service identities, optionally filtering to configured UIDs
+        # Extract service identities, optionally filtering to configured UIDs (deduplicated)
         candidate_ids: list[str] = []
         for svc in services:
             meta = svc.get("scheduleMetadata") or {}
             identity = meta.get("identity", "")
-            if not identity:
+            if not identity or identity in seen_ids:
                 continue
+            seen_ids.add(identity)
             if config.route.service_uids and identity not in config.route.service_uids:
                 continue
             candidate_ids.append(identity)
 
         if not candidate_ids:
             logger.info("No candidate services found for %s→%s on %s",
-                        config.route.origin, config.route.destination, today)
+                        config.route.origin, config.route.destination, target_date)
             return summary
 
         logger.info("Found %d candidate services for %s→%s",
@@ -114,14 +137,14 @@ def run_capture(config: Config, force: bool = False) -> dict:
         with get_connection(config.database_path) as conn:
             for identity in candidate_ids:
                 try:
-                    detail = get_service_detail(client, identity, today)
+                    detail = get_service_detail(client, identity, target_date)
                 except Exception as exc:
                     logger.warning("Failed to fetch detail for %s: %s", identity, exc)
                     summary["errors"] += 1
                     continue
 
                 obs = extract_observation(
-                    detail, config.route.origin, config.route.destination, today, captured_at
+                    detail, config.route.origin, config.route.destination, target_date, captured_at
                 )
                 if obs is None:
                     logger.debug("Service %s does not serve %s→%s — skipping",
@@ -134,7 +157,7 @@ def run_capture(config: Config, force: bool = False) -> dict:
 
                 upsert_service(conn, {
                     "service_uid": identity,
-                    "run_date": today.isoformat(),
+                    "run_date": target_date.isoformat(),
                     "origin": config.route.origin,
                     "destination": config.route.destination,
                     "operator_code": operator.get("code"),

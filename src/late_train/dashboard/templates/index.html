@@ -4,6 +4,16 @@
 
 {% block content %}
 
+<!-- ─── Service Filter ────────────────────────────────────────────────── -->
+<div id="serviceFilter" class="flex flex-wrap gap-2 items-center">
+  <span class="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide mr-1">Filter by departure:</span>
+  <button onclick="setDeparture(null)"
+    id="btn-all"
+    class="service-btn px-3 py-1 rounded-full text-xs font-medium border border-gray-300 dark:border-gray-600 bg-blue-600 text-white transition-colors">
+    All services
+  </button>
+</div>
+
 <!-- ─── Summary Cards ──────────────────────────────────────────────────── -->
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4" id="stats-cards">
   {% set cards = [
@@ -109,7 +119,7 @@
   </div>
   {% else %}
   <div class="px-4 sm:px-6 py-8 text-center text-gray-400 dark:text-gray-500">
-    No trains recorded for today yet. Capture runs during commute windows.
+    No trains recorded for today yet on {{ origin }} → {{ destination }}. Capture runs during commute windows.
   </div>
   {% endif %}
 </section>
@@ -195,8 +205,53 @@ Chart.defaults.borderColor = gridColor;
 Chart.defaults.font.family = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 Chart.defaults.font.size = 11;
 
+const ROUTE = { from: '{{ origin }}', to: '{{ destination }}' };
+let selectedDeparture = null;
+
+function routeQs(extra) {
+  let qs = `from=${ROUTE.from}&to=${ROUTE.to}`;
+  if (selectedDeparture) qs += `&departure_time=${encodeURIComponent(selectedDeparture)}`;
+  if (extra) qs += `&${extra}`;
+  return qs;
+}
+
+function setDeparture(time) {
+  selectedDeparture = time;
+  document.querySelectorAll('.service-btn').forEach(btn => {
+    const active = (time === null ? btn.id === 'btn-all' : btn.dataset.time === time);
+    btn.classList.toggle('bg-blue-600', active);
+    btn.classList.toggle('text-white', active);
+    btn.classList.toggle('bg-white', !active);
+    btn.classList.toggle('dark:bg-gray-800', !active);
+    btn.classList.toggle('text-gray-700', !active);
+    btn.classList.toggle('dark:text-gray-300', !active);
+  });
+  refreshAll();
+}
+
+function refreshAll() {
+  loadStats();
+  loadTrend(currentTrendDays);
+  loadWorstDays();
+}
+
+// ── Departure time filter pills ──────────────────────────────────────────
+fetch(`/api/departure-times?${routeQs()}`).then(r => r.json()).then(times => {
+  const container = document.getElementById('serviceFilter');
+  times.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'service-btn px-3 py-1 rounded-full text-xs font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-blue-400 transition-colors';
+    btn.dataset.time = t;
+    btn.textContent = t;
+    btn.onclick = () => setDeparture(t);
+    container.appendChild(btn);
+  });
+  if (!times.length) container.classList.add('hidden');
+});
+
 // ── Stats cards ────────────────────────────────────────────────────────
-fetch('/api/stats').then(r => r.json()).then(data => {
+function loadStats() {
+fetch(`/api/stats?${routeQs()}`).then(r => r.json()).then(data => {
   document.querySelectorAll('.stat-value').forEach(el => {
     const key = el.dataset.key;
     const suffix = el.dataset.suffix || '';
@@ -204,12 +259,16 @@ fetch('/api/stats').then(r => r.json()).then(data => {
     el.textContent = val !== null && val !== undefined ? val + suffix : '—';
   });
 });
+}
+loadStats();
 
 // ── Trend chart ─────────────────────────────────────────────────────────
 let trendChart;
+let currentTrendDays = 30;
 
 function loadTrend(days) {
-  fetch(`/api/trends?days=${days}`).then(r => r.json()).then(data => {
+  currentTrendDays = days;
+  fetch(`/api/trends?${routeQs(`days=${days}`)}`).then(r => r.json()).then(data => {
     const labels = data.map(d => d.run_date);
     const delays = data.map(d => d.avg_delay_mins);
     const onTime = data.map(d => d.pct_on_time);
@@ -266,7 +325,8 @@ function loadTrend(days) {
 loadTrend(30);
 
 // ── Worst days table ────────────────────────────────────────────────────
-fetch('/api/worst-days?limit=10').then(r => r.json()).then(data => {
+function loadWorstDays() {
+fetch(`/api/worst-days?${routeQs('limit=10')}`).then(r => r.json()).then(data => {
   const tbody = document.getElementById('worstDaysBody');
   if (!data.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-gray-400">No data yet</td></tr>';
@@ -281,9 +341,11 @@ fetch('/api/worst-days?limit=10').then(r => r.json()).then(data => {
     </tr>
   `).join('');
 });
+}
+loadWorstDays();
 
 // ── Delay reasons doughnut ──────────────────────────────────────────────
-fetch('/api/reasons?months=3').then(r => r.json()).then(data => {
+fetch(`/api/reasons?${routeQs('months=3')}`).then(r => r.json()).then(data => {
   if (!data.length) return;
   const catColors = {
     'Infrastructure': '#ef4444',
@@ -331,7 +393,7 @@ fetch('/api/reasons?months=3').then(r => r.json()).then(data => {
 });
 
 // ── HSP bar chart ───────────────────────────────────────────────────────
-fetch('/api/hsp-summary').then(r => r.json()).then(data => {
+fetch(`/api/hsp-summary?${routeQs()}`).then(r => r.json()).then(data => {
   if (!data.length) return;
   const labels = data.map(d => d.period_start);
   const buckets = [

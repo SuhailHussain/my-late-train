@@ -199,20 +199,42 @@ def insert_attributions(conn: sqlite3.Connection, rows: list[dict]) -> int:
 # Query helpers used by the dashboard
 # ---------------------------------------------------------------------------
 
-def query_today_observations(conn: sqlite3.Connection, date: str) -> list[sqlite3.Row]:
-    return conn.execute(
-        """SELECT o.*, dc.description AS reason_description, dc.category AS reason_category
-           FROM daily_observations o
-           LEFT JOIN delay_codes dc ON dc.code = o.cancel_reason_code
-           WHERE o.run_date = ?
-           ORDER BY o.scheduled_departure""",
-        (date,),
+def query_departure_times(conn: sqlite3.Connection) -> list[str]:
+    """Return all distinct scheduled departure times in the DB, sorted."""
+    rows = conn.execute(
+        "SELECT DISTINCT scheduled_departure FROM daily_observations ORDER BY scheduled_departure"
     ).fetchall()
+    return [r[0] for r in rows]
 
 
-def query_daily_trends(conn: sqlite3.Connection, days: int = 30) -> list[sqlite3.Row]:
+def query_today_observations(
+    conn: sqlite3.Connection,
+    date: str,
+    departure_time: str | None = None,
+) -> list[sqlite3.Row]:
+    sql = """SELECT o.*, dc.description AS reason_description, dc.category AS reason_category
+             FROM daily_observations o
+             LEFT JOIN delay_codes dc ON dc.code = o.cancel_reason_code
+             WHERE o.run_date = ?"""
+    params: list = [date]
+    if departure_time:
+        sql += " AND o.scheduled_departure = ?"
+        params.append(departure_time)
+    sql += " ORDER BY o.scheduled_departure"
+    return conn.execute(sql, params).fetchall()
+
+
+def query_daily_trends(
+    conn: sqlite3.Connection,
+    days: int = 30,
+    departure_time: str | None = None,
+) -> list[sqlite3.Row]:
+    extra = "AND scheduled_departure = ?" if departure_time else ""
+    params: list = [f"-{days}"]
+    if departure_time:
+        params.append(departure_time)
     return conn.execute(
-        """SELECT
+        f"""SELECT
                run_date,
                COUNT(*) AS num_services,
                AVG(CASE WHEN cancelled = 0 THEN delay_mins END) AS avg_delay_mins,
@@ -225,6 +247,7 @@ def query_daily_trends(conn: sqlite3.Connection, days: int = 30) -> list[sqlite3
                SUM(cancelled) AS num_cancelled
            FROM daily_observations
            WHERE run_date >= date('now', ? || ' days')
+             {extra}
              AND source = (
                  SELECT MAX(source) FROM daily_observations d2
                  WHERE d2.service_uid = daily_observations.service_uid
@@ -232,24 +255,34 @@ def query_daily_trends(conn: sqlite3.Connection, days: int = 30) -> list[sqlite3
              )
            GROUP BY run_date
            ORDER BY run_date""",
-        (f"-{days}",),
+        params,
     ).fetchall()
 
 
-def query_worst_days(conn: sqlite3.Connection, limit: int = 10) -> list[sqlite3.Row]:
+def query_worst_days(
+    conn: sqlite3.Connection,
+    limit: int = 10,
+    departure_time: str | None = None,
+) -> list[sqlite3.Row]:
+    extra = "AND scheduled_departure = ?" if departure_time else ""
+    params: list = []
+    if departure_time:
+        params.append(departure_time)
+    params.append(limit)
     return conn.execute(
-        """SELECT
+        f"""SELECT
                run_date,
                COUNT(*) AS num_services,
                ROUND(AVG(CASE WHEN cancelled = 0 THEN delay_mins END), 1) AS avg_delay_mins,
                MAX(CASE WHEN cancelled = 0 THEN delay_mins END) AS max_delay_mins,
                SUM(cancelled) AS num_cancelled
            FROM daily_observations
+           WHERE 1=1 {extra}
            GROUP BY run_date
            HAVING num_services > 0
            ORDER BY avg_delay_mins DESC NULLS LAST
            LIMIT ?""",
-        (limit,),
+        params,
     ).fetchall()
 
 

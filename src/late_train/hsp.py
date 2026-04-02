@@ -30,7 +30,7 @@ def _make_client(base_url: str, username: str, password: str) -> httpx.Client:
     return httpx.Client(
         base_url=base_url,
         auth=(username, password),
-        timeout=60.0,
+        timeout=120.0,
         headers={"Content-Type": "application/json", "Accept": "application/json"},
     )
 
