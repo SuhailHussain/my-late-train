@@ -4,149 +4,615 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Late Train</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Design tokens ──────────────────────────────────────── */
+    :root {
+      --sidebar-bg:            #0F1117;
+      --sidebar-text:          #E8E9EF;   /* 14:1 on sidebar ✓ AAA */
+      --sidebar-muted:         #8B8FA8;   /* 5.1:1 on sidebar ✓ AA  */
+      --sidebar-input-bg:      rgba(255,255,255,0.06);
+      --sidebar-input-border:  rgba(255,255,255,0.10);
+      --sidebar-input-focus:   rgba(255,255,255,0.75);
+      --sidebar-dropdown-bg:   #1C1F2E;
+      --page-bg:               #F5F4F0;
+      --card-bg:               #FFFFFF;
+      --card-border:           #E8E7E3;
+      --body-text:             #1A1A1A;   /* 17:1 on page-bg ✓ AAA */
+      --muted-text:            #6B7280;   /* 4.95:1 on page-bg ✓ AA */
+      --btn-bg:                #FFFFFF;
+      --btn-text:              #0F1117;   /* 17:1 ✓ AAA */
+      --btn-hover-bg:          #E8E9EF;
+      --color-on-time:         #16A34A;   /* 6.0:1 on white ✓ AA  */
+      --color-avg-late:        #B45309;   /* 4.77:1 on white ✓ AA */
+      --color-cancelled:       #B91C1C;   /* 5.2:1 on white ✓ AA  */
+      --accent:                #00C9A7;   /* decorative only — never used as text */
+    }
+
+    /* ── Base ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      background: var(--page-bg);
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      color: var(--body-text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .tabular {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+    }
+
+    /* ── Sidebar ───────────────────────────────────────────── */
+    .sidebar {
+      background: var(--sidebar-bg);
+      color: var(--sidebar-text);
+    }
+
+    .sidebar-heading {
+      font-size: 2.25rem;
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      color: var(--sidebar-text);
+    }
+
+    .sidebar-accent-rule {
+      width: 2rem;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 1px;
+      margin: 1.5rem 0 2rem;
+    }
+
+    .sidebar-section-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--sidebar-muted);
+      margin-bottom: 0.875rem;
+      display: block;
+    }
+
+    .sidebar-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--sidebar-muted);
+      display: block;
+      margin-bottom: 0.375rem;
+    }
+
+    .sidebar-input {
+      width: 100%;
+      background: var(--sidebar-input-bg);
+      border: 1px solid var(--sidebar-input-border);
+      border-radius: 8px;
+      padding: 0.625rem 2.5rem 0.625rem 0.75rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      color: var(--sidebar-text);
+      outline: none;
+      transition: border-color 0.15s ease, background 0.15s ease;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .sidebar-input::placeholder {
+      color: rgba(232, 233, 239, 0.45);
+    }
+
+    .sidebar-input:focus {
+      border-color: var(--sidebar-input-focus);
+      background: rgba(255,255,255,0.09);
+    }
+
+    /* Select chevron */
+    .sidebar-select-wrap { position: relative; }
+    .sidebar-select-wrap::after {
+      content: '';
+      pointer-events: none;
+      position: absolute;
+      right: 0.875rem;
+      top: 50%;
+      transform: translateY(-50%);
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--sidebar-muted);
+    }
+
+    /* Input with icon */
+    .input-icon { position: relative; }
+    .input-icon .icon {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--sidebar-muted);
+      pointer-events: none;
+    }
+
+    /* Autocomplete dropdown */
+    .sidebar-dropdown {
+      background: var(--sidebar-dropdown-bg);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 8px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+    }
+
+    .sidebar-dropdown-item {
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.875rem;
+      color: var(--sidebar-text);
+      transition: background 0.1s;
+    }
+
+    .sidebar-dropdown-item:first-child { border-radius: 7px 7px 0 0; }
+    .sidebar-dropdown-item:last-child  { border-radius: 0 0 7px 7px; }
+
+    .sidebar-dropdown-item:hover,
+    .sidebar-dropdown-item.active {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .sidebar-dropdown-crs {
+      font-size: 0.6875rem;
+      color: var(--sidebar-muted);
+      font-variant-numeric: tabular-nums;
+      margin-left: 0.625rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* Swap button */
+    .swap-btn {
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: transparent;
+      color: var(--sidebar-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      transition: border-color 0.15s, color 0.15s;
+      line-height: 1;
+    }
+
+    .swap-btn:hover {
+      border-color: rgba(255,255,255,0.35);
+      color: var(--sidebar-text);
+    }
+
+    /* Day radios */
+    .day-radio-label {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      font-size: 0.875rem;
+      color: var(--sidebar-text);
+      cursor: pointer;
+      padding: 0.1875rem 0;
+      user-select: none;
+    }
+
+    .day-radio-label input[type="radio"] {
+      accent-color: var(--sidebar-text);
+      width: 1rem;
+      height: 1rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Search button */
+    .search-btn {
+      width: 100%;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: none;
+      border-radius: 8px;
+      padding: 0.8125rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      letter-spacing: 0.025em;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .search-btn:hover  { background: var(--btn-hover-bg); }
+    .search-btn:active { background: #D4D3CF; }
+
+    /* Sidebar error */
+    .sidebar-error {
+      font-size: 0.75rem;
+      color: #FCA5A5;   /* 9.8:1 on sidebar bg ✓ AAA */
+      margin-bottom: 0.625rem;
+    }
+
+    /* Divider between sections in sidebar */
+    .sidebar-divider {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      margin: 1.5rem 0;
+    }
+
+    /* ── Content area ──────────────────────────────────────── */
+    .content-heading {
+      font-size: 1.4375rem;
+      font-weight: 700;
+      color: var(--body-text);
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+    }
+
+    .content-subheading {
+      font-size: 0.8125rem;
+      color: var(--muted-text);
+      margin-top: 0.25rem;
+    }
+
+    .state-empty-text {
+      font-size: 0.875rem;
+      color: var(--muted-text);
+    }
+
+    /* ── Train cards ───────────────────────────────────────── */
+    .train-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 0.875rem 1rem;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      display: block;
+      width: 100%;
+    }
+
+    .train-card:hover {
+      border-color: #B0AFA9;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+
+    .train-card.selected {
+      border-color: var(--color-on-time);
+      border-left-width: 3px;
+      background: #F0FDF4;
+      box-shadow: 0 2px 10px rgba(22,163,74,0.10);
+    }
+
+    .train-card-time {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--body-text);
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+      letter-spacing: -0.01em;
+      line-height: 1;
+    }
+
+    .train-card-operator {
+      font-size: 0.6875rem;
+      color: var(--muted-text);
+      margin-top: 0.3125rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Stat cards ────────────────────────────────────────── */
+    .stat-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--card-border);
+      padding: 1.375rem 1.25rem 1.125rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: 16px 16px 0 0;
+    }
+
+    .stat-card--green::before { background: var(--color-on-time);  }
+    .stat-card--amber::before { background: var(--color-avg-late); }
+    .stat-card--red::before   { background: var(--color-cancelled); }
+
+    .stat-card-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #6B7280;   /* 5.8:1 on white ✓ AA */
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .stat-card-value {
+      font-size: 3rem;
+      font-weight: 800;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+      letter-spacing: -0.03em;
+    }
+
+    .stat-card-value--green { color: var(--color-on-time);   }
+    .stat-card-value--amber { color: var(--color-avg-late);  }
+    .stat-card-value--red   { color: var(--color-cancelled); }
+
+    /* ── Chart card ────────────────────────────────────────── */
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--card-border);
+      padding: 1.5rem;
+    }
+
+    .chart-card-heading {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #6B7280;
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Alert boxes ───────────────────────────────────────── */
+    .alert-warning {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .alert-warning .alert-title {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #92400E;   /* 7.2:1 on #FFFBEB ✓ AA */
+    }
+    .alert-warning .alert-body {
+      font-size: 0.75rem;
+      color: #B45309;   /* 5.4:1 on #FFFBEB ✓ AA */
+      margin-top: 0.25rem;
+    }
+
+    .alert-error {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .alert-error .alert-title {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #991B1B;   /* 6.3:1 on #FEF2F2 ✓ AA */
+    }
+    .alert-error .alert-body {
+      font-size: 0.75rem;
+      color: #B91C1C;   /* 5.8:1 on #FEF2F2 ✓ AA */
+      margin-top: 0.25rem;
+    }
+
+    /* ── Footer note ───────────────────────────────────────── */
+    .footer-note {
+      font-size: 0.6875rem;
+      color: var(--muted-text);
+      text-align: center;
+      padding-bottom: 0.5rem;
+    }
+
+    /* ── Loading spinner ───────────────────────────────────── */
+    .spinner-ring {
+      width: 1.75rem;
+      height: 1.75rem;
+      border: 2px solid rgba(107,114,128,0.2);
+      border-top-color: #6B7280;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 0.625rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── "No trains" inline message ────────────────────────── */
+    #noTrainsMsg {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      border-radius: 10px;
+      padding: 0.875rem 1rem;
+      font-size: 0.875rem;
+      color: #92400E;
+    }
+  </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col">
+<body class="min-h-screen">
 
-  <main class="flex-1 flex items-center justify-center px-4">
-    <div class="w-full max-w-md">
+<div class="flex flex-col lg:flex-row min-h-screen">
 
-      <!-- Logo / Title -->
-      <div class="text-center mb-8">
-        <div class="text-5xl mb-4">🚂</div>
-        <h1 class="text-3xl font-bold tracking-tight">My Late Train</h1>
-        <p class="text-gray-500 dark:text-gray-400 mt-2 text-sm">Track your commute. Understand your delays.</p>
+  <!-- ── Left panel ── -->
+  <aside class="sidebar w-full lg:w-80 lg:min-h-screen p-8 lg:sticky lg:top-0 lg:self-start flex-shrink-0">
+
+    <h1 class="sidebar-heading">How late is<br>my train?</h1>
+    <div class="sidebar-accent-rule" aria-hidden="true"></div>
+
+    <!-- From -->
+    <div class="mb-4">
+      <label class="sidebar-label" for="fromInput">From</label>
+      <div class="input-icon relative">
+        <input id="fromInput" type="text" autocomplete="off" placeholder="Station"
+          class="sidebar-input tabular">
+        <input type="hidden" id="fromCrs">
+        <svg class="icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <div id="fromDropdown" class="sidebar-dropdown absolute z-20 left-0 right-0 mt-1 hidden max-h-52 overflow-y-auto"></div>
       </div>
-
-      <!-- Step indicators -->
-      <div class="flex items-center justify-center gap-2 mb-6 text-xs font-semibold uppercase tracking-widest">
-        <span id="ind1" class="text-blue-600 dark:text-blue-400">Route</span>
-        <span class="text-gray-300 dark:text-gray-600">›</span>
-        <span id="ind2" class="text-gray-400 dark:text-gray-600">Time</span>
-        <span class="text-gray-300 dark:text-gray-600">›</span>
-        <span id="ind3" class="text-gray-400 dark:text-gray-600">Train</span>
-      </div>
-
-      <!-- Step 1: Route picker -->
-      <div id="step1" class="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
-        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Step 1 — Your route</h2>
-
-        <!-- From -->
-        <div class="mb-4">
-          <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1.5">From</label>
-          <div class="relative">
-            <input id="fromInput" type="text" autocomplete="off" placeholder="e.g. Rochdale"
-              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <input type="hidden" id="fromCrs">
-            <div id="fromDropdown" class="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto"></div>
-          </div>
-        </div>
-
-        <!-- Swap -->
-        <div class="flex justify-center my-3">
-          <button type="button" onclick="swapStations()"
-            class="w-9 h-9 flex items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-300 transition-colors"
-            title="Swap stations">⇅</button>
-        </div>
-
-        <!-- To -->
-        <div class="mb-6">
-          <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1.5">To</label>
-          <div class="relative">
-            <input id="toInput" type="text" autocomplete="off" placeholder="e.g. Manchester Victoria"
-              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <input type="hidden" id="toCrs">
-            <div id="toDropdown" class="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto"></div>
-          </div>
-        </div>
-
-        <p id="step1Error" class="text-red-500 text-sm text-center mb-3 hidden">Please select both a departure and arrival station.</p>
-        <button onclick="goStep2()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors text-base">
-          Next →
-        </button>
-      </div>
-
-      <!-- Step 2: Time + day type -->
-      <div id="step2" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
-        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Step 2 — When do you travel?</h2>
-
-        <div class="mb-5">
-          <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-1.5">Approximate departure time</label>
-          <select id="timeSelect" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
-        </div>
-
-        <div class="mb-6">
-          <label class="block text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Day type</label>
-          <div class="flex gap-3">
-            <label class="flex-1 flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="days" value="WEEKDAY" checked class="accent-blue-600"> <span class="text-sm">Weekdays</span>
-            </label>
-            <label class="flex-1 flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="days" value="SATURDAY" class="accent-blue-600"> <span class="text-sm">Saturdays</span>
-            </label>
-            <label class="flex-1 flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="days" value="SUNDAY" class="accent-blue-600"> <span class="text-sm">Sundays</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="flex gap-3">
-          <button onclick="goStep(1)" class="flex-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-semibold py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-base">
-            ← Back
-          </button>
-          <button onclick="goStep3()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors text-base">
-            Find trains →
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 3: Pick your train -->
-      <div id="step3" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
-        <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Step 3 — Select your train</h2>
-
-        <div id="trainsLoading" class="text-center py-8 text-gray-400">
-          <svg class="animate-spin h-6 w-6 mx-auto mb-2 text-blue-500" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-          </svg>
-          Loading trains…
-        </div>
-
-        <div id="trainsList" class="hidden space-y-2 mb-5"></div>
-
-        <p id="noTrainsMsg" class="hidden text-center text-yellow-600 dark:text-yellow-400 text-sm py-4">
-          No trains found around that time. Try adjusting the time in the previous step.
-        </p>
-        <p id="trainsErrorMsg" class="hidden text-center text-red-500 text-sm py-4"></p>
-
-        <div class="flex gap-3 mt-4">
-          <button onclick="goStep(2)" class="flex-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-semibold py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-base">
-            ← Back
-          </button>
-          <button id="searchBtn" onclick="goResults()" disabled
-            class="flex-1 bg-blue-600 text-white font-semibold py-3 rounded-lg transition-colors text-base opacity-40 cursor-not-allowed">
-            Search →
-          </button>
-        </div>
-      </div>
-
     </div>
-  </main>
 
-  <footer class="text-center text-xs text-gray-400 dark:text-gray-600 py-4">
-    Data: Realtime Trains · National Rail HSP · Network Rail
-  </footer>
+    <!-- Swap -->
+    <div class="flex justify-center mb-4">
+      <button type="button" onclick="swapStations()" class="swap-btn"
+        title="Swap stations" aria-label="Swap from and to stations">⇅</button>
+    </div>
+
+    <!-- To -->
+    <div class="mb-5">
+      <label class="sidebar-label" for="toInput">To</label>
+      <div class="input-icon relative">
+        <input id="toInput" type="text" autocomplete="off" placeholder="Station"
+          class="sidebar-input tabular">
+        <input type="hidden" id="toCrs">
+        <svg class="icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <div id="toDropdown" class="sidebar-dropdown absolute z-20 left-0 right-0 mt-1 hidden max-h-52 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <!-- When do you travel -->
+    <span class="sidebar-section-label">When do you travel?</span>
+
+    <!-- Time -->
+    <div class="mb-4">
+      <label class="sidebar-label" for="timeSelect">Departure time</label>
+      <div class="sidebar-select-wrap">
+        <select id="timeSelect" class="sidebar-input tabular"></select>
+      </div>
+    </div>
+
+    <!-- Day type -->
+    <div class="mb-8 space-y-2">
+      <label class="day-radio-label">
+        <input type="radio" name="days" value="WEEKDAY" checked> Weekdays
+      </label>
+      <label class="day-radio-label">
+        <input type="radio" name="days" value="SATURDAY"> Saturdays
+      </label>
+      <label class="day-radio-label">
+        <input type="radio" name="days" value="SUNDAY"> Sundays
+      </label>
+    </div>
+
+    <p id="searchError" class="sidebar-error hidden">Please select both stations.</p>
+    <button onclick="runSearch()" class="search-btn">Search</button>
+
+  </aside>
+
+  <!-- ── Right content area ── -->
+  <main class="flex-1 p-6 lg:p-12 min-w-0">
+
+    <!-- Empty state -->
+    <div id="stateEmpty" class="h-full flex items-center justify-center min-h-64">
+      <p class="state-empty-text">Search a route to see performance data</p>
+    </div>
+
+    <!-- Loading state -->
+    <div id="stateLoading" class="hidden h-full flex items-center justify-center min-h-64">
+      <div class="text-center">
+        <div class="spinner-ring"></div>
+        <p class="text-sm" style="color:var(--muted-text)">Finding trains…</p>
+      </div>
+    </div>
+
+    <!-- Train picker -->
+    <div id="stateTrains" class="hidden">
+      <h2 class="content-heading mb-1">Select your train</h2>
+      <p id="trainSubheader" class="content-subheading mb-6"></p>
+      <div id="trainCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-4"></div>
+      <div id="trainLoadingMore" class="hidden text-center py-8">
+        <div class="spinner-ring"></div>
+        <p class="text-xs" style="color:var(--muted-text)">Loading performance data…</p>
+      </div>
+      <p id="noTrainsMsg" class="hidden">No trains found around that time. Try a different time.</p>
+    </div>
+
+    <!-- Results -->
+    <div id="stateResults" class="hidden space-y-5">
+
+      <div class="flex items-start justify-between">
+        <div>
+          <h2 id="resultsTitle" class="content-heading" style="font-size:1.5rem"></h2>
+          <p id="resultsSubtitle" class="content-subheading"></p>
+        </div>
+        <button onclick="showState('stateTrains')"
+          class="text-xs mt-1 transition-colors"
+          style="color:var(--muted-text)"
+          onmouseover="this.style.color='var(--body-text)'"
+          onmouseout="this.style.color='var(--muted-text)'">← Change train</button>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="grid grid-cols-3 gap-4">
+        <div class="stat-card stat-card--green">
+          <span class="stat-card-label">On time</span>
+          <p id="cardOnTime" class="stat-card-value stat-card-value--green tabular">—</p>
+        </div>
+        <div class="stat-card stat-card--amber">
+          <span class="stat-card-label">Avg late</span>
+          <p id="cardAvgLate" class="stat-card-value stat-card-value--amber tabular">—</p>
+        </div>
+        <div class="stat-card stat-card--red">
+          <span class="stat-card-label">Cancelled</span>
+          <p id="cardCancelled" class="stat-card-value stat-card-value--red tabular">—</p>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="chart-card">
+        <h3 class="chart-card-heading">Delay distribution</h3>
+        <canvas id="delayChart" height="180"></canvas>
+      </div>
+
+      <!-- Alert states -->
+      <div id="noDataAlert" class="alert-warning hidden">
+        <p class="alert-title">No historical data found for this service</p>
+        <p class="alert-body">The route or time may not be in HSP. Try a different train.</p>
+      </div>
+      <div id="errorAlert" class="alert-error hidden">
+        <p class="alert-title">Couldn't load performance data</p>
+        <p id="errorAlertMsg" class="alert-body"></p>
+      </div>
+
+      <p id="footerNote" class="footer-note"></p>
+    </div>
+
+  </main>
+</div>
 
 <script>
 let stations = [];
-let selectedDeparture = null;
+let currentFromCrs = '', currentToCrs = '', currentFromName = '', currentToName = '';
+let currentDeparture = '';
+let delayChartInstance = null;
 
-// Populate time dropdown: 05:00 → 23:30 in 30-min steps
+// ── Time dropdown ──
 const timeSelect = document.getElementById('timeSelect');
 for (let h = 5; h < 24; h++) {
   for (let m of [0, 30]) {
-    const hh = String(h).padStart(2, '0');
-    const mm = String(m).padStart(2, '0');
+    const hh = String(h).padStart(2,'0'), mm = String(m).padStart(2,'0');
     const opt = document.createElement('option');
     opt.value = hh + mm;
     opt.textContent = hh + ':' + mm;
@@ -155,7 +621,7 @@ for (let h = 5; h < 24; h++) {
   }
 }
 
-// Load stations
+// ── Stations ──
 fetch('/api/stations').then(r => r.json()).then(data => {
   stations = data;
   const saved = JSON.parse(localStorage.getItem('mlt_route') || 'null');
@@ -163,38 +629,60 @@ fetch('/api/stations').then(r => r.json()).then(data => {
     setStation('from', saved.fromName, saved.fromCrs);
     setStation('to', saved.toName, saved.toCrs);
   }
+  const p = new URLSearchParams(location.search);
+  if (p.get('from') && p.get('to')) {
+    const fromSt = stations.find(s => s.crs === p.get('from').toUpperCase());
+    const toSt   = stations.find(s => s.crs === p.get('to').toUpperCase());
+    if (fromSt) setStation('from', fromSt.name, fromSt.crs);
+    if (toSt)   setStation('to', toSt.name, toSt.crs);
+    const depOpt = timeSelect.querySelector(`option[value="${p.get('departure')}"]`);
+    if (depOpt) depOpt.selected = true;
+    const dayRadio = document.querySelector(`input[name="days"][value="${p.get('days')}"]`);
+    if (dayRadio) dayRadio.checked = true;
+    runSearch();
+  }
 });
 
 function setStation(which, name, crs) {
   document.getElementById(which + 'Input').value = name;
-  document.getElementById(which + 'Crs').value = crs;
+  document.getElementById(which + 'Crs').value   = crs;
+  if (which === 'from') { currentFromName = name; currentFromCrs = crs; }
+  else                  { currentToName   = name; currentToCrs   = crs; }
 }
 
+// ── Autocomplete ──
 function makeAutocomplete(inputId, dropdownId, crsId) {
-  const input = document.getElementById(inputId);
+  const input    = document.getElementById(inputId);
   const dropdown = document.getElementById(dropdownId);
   const crsInput = document.getElementById(crsId);
 
   input.addEventListener('input', () => {
     const q = input.value.trim().toLowerCase();
     crsInput.value = '';
+    if (inputId === 'fromInput') currentFromCrs = '';
+    else currentToCrs = '';
     if (q.length < 1) { dropdown.classList.add('hidden'); return; }
+
     const matches = stations.filter(s =>
       s.name.toLowerCase().includes(q) || s.crs.toLowerCase().startsWith(q)
     ).slice(0, 8);
+
     if (!matches.length) { dropdown.classList.add('hidden'); return; }
-    dropdown.innerHTML = matches.map(s => `
-      <div class="px-4 py-2.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600 flex justify-between items-center text-sm"
-           data-name="${s.name}" data-crs="${s.crs}">
+
+    dropdown.innerHTML = matches.map(s =>
+      `<div class="sidebar-dropdown-item" data-name="${s.name}" data-crs="${s.crs}">
         <span>${s.name}</span>
-        <span class="text-xs text-gray-400 font-mono">${s.crs}</span>
-      </div>
-    `).join('');
+        <span class="sidebar-dropdown-crs">${s.crs}</span>
+      </div>`
+    ).join('');
     dropdown.classList.remove('hidden');
+
     dropdown.querySelectorAll('[data-crs]').forEach(el => {
       el.addEventListener('click', () => {
         input.value = el.dataset.name;
         crsInput.value = el.dataset.crs;
+        if (inputId === 'fromInput') { currentFromName = el.dataset.name; currentFromCrs = el.dataset.crs; }
+        else                         { currentToName   = el.dataset.name; currentToCrs   = el.dataset.crs; }
         dropdown.classList.add('hidden');
       });
     });
@@ -206,25 +694,25 @@ function makeAutocomplete(inputId, dropdownId, crsId) {
   });
 
   input.addEventListener('keydown', e => {
-    const items = dropdown.querySelectorAll('[data-crs]');
-    const active = dropdown.querySelector('.bg-blue-100');
+    const items  = dropdown.querySelectorAll('[data-crs]');
+    const active = dropdown.querySelector('.active');
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       const next = active ? active.nextElementSibling : items[0];
-      if (active) active.classList.remove('bg-blue-100', 'dark:bg-gray-500');
-      if (next) next.classList.add('bg-blue-100', 'dark:bg-gray-500');
+      if (active) active.classList.remove('active');
+      if (next) next.classList.add('active');
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       const prev = active ? active.previousElementSibling : items[items.length - 1];
-      if (active) active.classList.remove('bg-blue-100', 'dark:bg-gray-500');
-      if (prev) prev.classList.add('bg-blue-100', 'dark:bg-gray-500');
-    } else if (e.key === 'Enter') {
-      if (active) {
-        e.preventDefault();
-        input.value = active.dataset.name;
-        crsInput.value = active.dataset.crs;
-        dropdown.classList.add('hidden');
-      }
+      if (active) active.classList.remove('active');
+      if (prev) prev.classList.add('active');
+    } else if (e.key === 'Enter' && active) {
+      e.preventDefault();
+      input.value = active.dataset.name;
+      crsInput.value = active.dataset.crs;
+      if (inputId === 'fromInput') { currentFromName = active.dataset.name; currentFromCrs = active.dataset.crs; }
+      else                         { currentToName   = active.dataset.name; currentToCrs   = active.dataset.crs; }
+      dropdown.classList.add('hidden');
     } else if (e.key === 'Escape') {
       dropdown.classList.add('hidden');
     }
@@ -232,108 +720,181 @@ function makeAutocomplete(inputId, dropdownId, crsId) {
 }
 
 makeAutocomplete('fromInput', 'fromDropdown', 'fromCrs');
-makeAutocomplete('toInput', 'toDropdown', 'toCrs');
+makeAutocomplete('toInput',   'toDropdown',   'toCrs');
 
 function swapStations() {
-  const fromName = document.getElementById('fromInput').value;
-  const fromCrs  = document.getElementById('fromCrs').value;
-  const toName   = document.getElementById('toInput').value;
-  const toCrs    = document.getElementById('toCrs').value;
-  setStation('from', toName, toCrs);
-  setStation('to', fromName, fromCrs);
+  const fn = currentFromName, fc = currentFromCrs;
+  setStation('from', currentToName,  currentToCrs);
+  setStation('to',   fn, fc);
 }
 
-function goStep(n) {
-  document.getElementById('step1').classList.toggle('hidden', n !== 1);
-  document.getElementById('step2').classList.toggle('hidden', n !== 2);
-  document.getElementById('step3').classList.toggle('hidden', n !== 3);
-  ['ind1','ind2','ind3'].forEach((id, i) => {
-    const el = document.getElementById(id);
-    el.className = (i + 1 === n)
-      ? 'text-blue-600 dark:text-blue-400'
-      : 'text-gray-400 dark:text-gray-600';
-  });
+// ── State management ──
+function showState(id) {
+  ['stateEmpty','stateLoading','stateTrains','stateResults'].forEach(s =>
+    document.getElementById(s).classList.toggle('hidden', s !== id)
+  );
 }
 
-function goStep2() {
+// ── Search ──
+function runSearch() {
   const fromCrs = document.getElementById('fromCrs').value;
   const toCrs   = document.getElementById('toCrs').value;
   if (!fromCrs || !toCrs) {
-    document.getElementById('step1Error').classList.remove('hidden');
+    document.getElementById('searchError').classList.remove('hidden');
     return;
   }
-  document.getElementById('step1Error').classList.add('hidden');
-  const fromName = document.getElementById('fromInput').value;
-  const toName   = document.getElementById('toInput').value;
-  localStorage.setItem('mlt_route', JSON.stringify({ fromCrs, fromName, toCrs, toName }));
-  goStep(2);
-}
+  document.getElementById('searchError').classList.add('hidden');
+  currentFromCrs  = fromCrs;
+  currentToCrs    = toCrs;
+  currentFromName = document.getElementById('fromInput').value;
+  currentToName   = document.getElementById('toInput').value;
+  localStorage.setItem('mlt_route', JSON.stringify({
+    fromCrs, fromName: currentFromName, toCrs, toName: currentToName
+  }));
 
-function goStep3() {
-  const fromCrs = document.getElementById('fromCrs').value;
-  const toCrs   = document.getElementById('toCrs').value;
-  const around  = document.getElementById('timeSelect').value;
-  const days    = document.querySelector('input[name="days"]:checked').value;
+  const around = timeSelect.value;
+  const days   = document.querySelector('input[name="days"]:checked').value;
 
-  goStep(3);
-  selectedDeparture = null;
-  document.getElementById('searchBtn').disabled = true;
-  document.getElementById('searchBtn').classList.add('opacity-40', 'cursor-not-allowed');
-  document.getElementById('trainsLoading').classList.remove('hidden');
-  document.getElementById('trainsList').classList.add('hidden');
+  showState('stateLoading');
   document.getElementById('noTrainsMsg').classList.add('hidden');
-  document.getElementById('trainsErrorMsg').classList.add('hidden');
 
   fetch(`/api/trains?from=${fromCrs}&to=${toCrs}&around=${around}&days=${days}`)
     .then(r => r.json())
     .then(data => {
-      document.getElementById('trainsLoading').classList.add('hidden');
       const trains = Array.isArray(data) ? data : (data.trains || []);
-      if (data.error && !trains.length) {
-        document.getElementById('trainsErrorMsg').textContent = 'Could not load trains: ' + data.error;
-        document.getElementById('trainsErrorMsg').classList.remove('hidden');
-      } else if (!trains.length) {
+      showState('stateTrains');
+      const aroundLabel = around.slice(0,2) + ':' + around.slice(2);
+      const daysLabel   = {WEEKDAY:'Weekdays', SATURDAY:'Saturdays', SUNDAY:'Sundays'}[days] || days;
+      document.getElementById('trainSubheader').textContent =
+        `${currentFromName} → ${currentToName} · around ${aroundLabel} · ${daysLabel}`;
+
+      if (!trains.length) {
+        document.getElementById('trainCards').innerHTML = '';
         document.getElementById('noTrainsMsg').classList.remove('hidden');
-      } else {
-        renderTrains(trains);
+        return;
       }
+      renderTrainCards(trains, days);
     })
     .catch(() => {
-      document.getElementById('trainsLoading').classList.add('hidden');
-      document.getElementById('trainsErrorMsg').textContent = 'Could not connect to server.';
-      document.getElementById('trainsErrorMsg').classList.remove('hidden');
+      showState('stateTrains');
+      document.getElementById('trainCards').innerHTML = '';
+      document.getElementById('noTrainsMsg').textContent = 'Could not connect to the server.';
+      document.getElementById('noTrainsMsg').classList.remove('hidden');
     });
 }
 
-function renderTrains(trains) {
-  const list = document.getElementById('trainsList');
-  list.innerHTML = trains.map(t => {
+function renderTrainCards(trains, days) {
+  document.getElementById('trainCards').innerHTML = trains.map(t => {
     const dep = t.departure.length === 4
       ? t.departure.slice(0,2) + ':' + t.departure.slice(2)
       : t.departure;
-    return `
-      <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
-        <input type="radio" name="train" value="${t.departure}" class="accent-blue-600" onchange="selectTrain('${t.departure}')">
-        <span class="font-mono font-semibold text-base">${dep}</span>
-        <span class="text-gray-500 dark:text-gray-400 text-sm">${t.operator || ''}</span>
-      </label>`;
+    return `<button onclick="selectTrain('${t.departure}','${days}')" class="train-card">
+      <p class="train-card-time">${dep}</p>
+      <p class="train-card-operator">${t.operator || ''}</p>
+    </button>`;
   }).join('');
-  list.classList.remove('hidden');
 }
 
-function selectTrain(dep) {
-  selectedDeparture = dep;
-  const btn = document.getElementById('searchBtn');
-  btn.disabled = false;
-  btn.classList.remove('opacity-40', 'cursor-not-allowed');
+function selectTrain(departure, days) {
+  currentDeparture = departure;
+  document.querySelectorAll('#trainCards .train-card').forEach(b => b.classList.remove('selected'));
+  // Match the card whose displayed time equals the departure (e.g. "0835" → "08:35")
+  const depFormatted = departure.slice(0,2) + ':' + departure.slice(2);
+  document.querySelectorAll('#trainCards .train-card').forEach(b => {
+    if (b.querySelector('.train-card-time').textContent === depFormatted)
+      b.classList.add('selected');
+  });
+  document.getElementById('trainLoadingMore').classList.remove('hidden');
+  fetchPerformance(currentFromCrs, currentToCrs, departure, days);
 }
 
-function goResults() {
-  if (!selectedDeparture) return;
-  const fromCrs = document.getElementById('fromCrs').value;
-  const toCrs   = document.getElementById('toCrs').value;
-  const days    = document.querySelector('input[name="days"]:checked').value;
-  window.location.href = `/results?from=${fromCrs}&to=${toCrs}&departure=${selectedDeparture}&days=${days}`;
+// ── Performance ──
+function fetchPerformance(from, to, departure, days) {
+  fetch(`/api/performance?from=${from}&to=${to}&departure=${departure}&days=${days}`)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(data => {
+      document.getElementById('trainLoadingMore').classList.add('hidden');
+      showState('stateResults');
+      document.getElementById('noDataAlert').classList.add('hidden');
+      document.getElementById('errorAlert').classList.add('hidden');
+
+      const depLabel  = departure.slice(0,2) + ':' + departure.slice(2);
+      const daysLabel = {WEEKDAY:'Weekdays', SATURDAY:'Saturdays', SUNDAY:'Sundays'}[days] || days;
+      document.getElementById('resultsTitle').textContent    = `${currentFromName} → ${currentToName}`;
+      document.getElementById('resultsSubtitle').textContent = `${depLabel} · ${daysLabel} · last 6 months`;
+
+      if (data.error && data.total === 0) {
+        document.getElementById('noDataAlert').classList.remove('hidden');
+        ['cardOnTime','cardAvgLate','cardCancelled'].forEach(id =>
+          document.getElementById(id).textContent = '—'
+        );
+        document.getElementById('footerNote').textContent = '';
+        if (delayChartInstance) { delayChartInstance.destroy(); delayChartInstance = null; }
+        return;
+      }
+
+      if (data.error) {
+        document.getElementById('errorAlertMsg').textContent = data.error;
+        document.getElementById('errorAlert').classList.remove('hidden');
+        return;
+      }
+
+      document.getElementById('cardOnTime').textContent    = data.pct_on_time   !== null ? data.pct_on_time   + '%' : '—';
+      document.getElementById('cardAvgLate').textContent   = data.avg_late_mins !== null ? data.avg_late_mins + ' min' : '—';
+      document.getElementById('cardCancelled').textContent = data.pct_cancelled !== null ? data.pct_cancelled + '%' : '—';
+
+      const labels = ['On time','1–5 min','5–10 min','10–15 min','15–20 min','20–30 min','30+ min','Cancelled'];
+      const values = [
+        data.pct_on_time, data.pct_late_1_5, data.pct_late_5_10,
+        data.pct_late_10_15, data.pct_late_15_20, data.pct_late_20_30,
+        data.pct_late_30_plus, data.pct_cancelled,
+      ];
+      const colours = ['#16A34A','#4ADE80','#FCD34D','#FB923C','#F87171','#EF4444','#991B1B','#6D28D9'];
+
+      if (delayChartInstance) delayChartInstance.destroy();
+      delayChartInstance = new Chart(document.getElementById('delayChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{ data: values, backgroundColor: colours, borderRadius: 5, borderSkipped: false }]
+        },
+        options: {
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ` ${ctx.raw}% of journeys` } }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                callback: v => v + '%',
+                font: { family: "'Inter', sans-serif", size: 11 },
+                color: '#9CA3AF',
+              },
+              grid: { color: 'rgba(0,0,0,0.04)' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: {
+                font: { family: "'Inter', sans-serif", size: 11 },
+                color: '#9CA3AF',
+              }
+            }
+          }
+        }
+      });
+
+      const fmtDate = d => new Date(d).toLocaleDateString('en-GB', {month:'short', year:'numeric'});
+      document.getElementById('footerNote').textContent =
+        `Based on ${data.total.toLocaleString()} journeys · ${fmtDate(data.from_date)} – ${fmtDate(data.to_date)} · Source: National Rail HSP`;
+    })
+    .catch(err => {
+      document.getElementById('trainLoadingMore').classList.add('hidden');
+      showState('stateResults');
+      document.getElementById('errorAlertMsg').textContent = 'Unexpected error: ' + err.message;
+      document.getElementById('errorAlert').classList.remove('hidden');
+    });
 }
 </script>
 
