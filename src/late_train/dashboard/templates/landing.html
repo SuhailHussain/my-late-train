@@ -7,41 +7,30 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.css" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     /* ── Design tokens ──────────────────────────────────────── */
     :root {
-      --sidebar-bg:            #0F1117;
-      --sidebar-text:          #E8E9EF;   /* 14:1 on sidebar ✓ AAA */
-      --sidebar-muted:         #8B8FA8;   /* 5.1:1 on sidebar ✓ AA  */
-      --sidebar-input-bg:      rgba(255,255,255,0.06);
-      --sidebar-input-border:  rgba(255,255,255,0.10);
-      --sidebar-input-focus:   rgba(255,255,255,0.75);
-      --sidebar-dropdown-bg:   #1C1F2E;
-      --page-bg:               #F5F4F0;
-      --card-bg:               #FFFFFF;
-      --card-border:           #E8E7E3;
-      --body-text:             #1A1A1A;   /* 17:1 on page-bg ✓ AAA */
-      --muted-text:            #6B7280;   /* 4.95:1 on page-bg ✓ AA */
-      --btn-bg:                #FFFFFF;
-      --btn-text:              #0F1117;   /* 17:1 ✓ AAA */
-      --btn-hover-bg:          #E8E9EF;
-      --color-on-time:         #16A34A;   /* 6.0:1 on white ✓ AA  */
-      --color-avg-late:        #B45309;   /* 4.77:1 on white ✓ AA */
-      --color-cancelled:       #B91C1C;   /* 5.2:1 on white ✓ AA  */
-      --accent:                #00C9A7;   /* decorative only — never used as text */
+      --sidebar-bg:           #0F1117;
+      --sidebar-text:         #E8E9EF;
+      --sidebar-muted:        #8B8FA8;
+      --sidebar-input-bg:     rgba(255,255,255,0.06);
+      --sidebar-input-border: rgba(255,255,255,0.10);
+      --sidebar-dropdown-bg:  #1C1F2E;
+      --accent:               #00C9A7;
+      --color-on-time:        #16A34A;
+      --color-avg-late:       #B45309;
+      --color-cancelled:      #B91C1C;
     }
 
-    /* ── Base ──────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; }
 
     body {
-      background: var(--page-bg);
       font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-      color: var(--body-text);
       -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
+      background: #F8F7F4;
     }
 
     .tabular {
@@ -49,46 +38,46 @@
       font-feature-settings: "tnum";
     }
 
-    /* ── Sidebar ───────────────────────────────────────────── */
+    /* ── Sidebar ──────────────────────────────────────────── */
     .sidebar {
       background: var(--sidebar-bg);
       color: var(--sidebar-text);
     }
 
     .sidebar-heading {
-      font-size: 2.25rem;
+      font-size: 2.125rem;
       font-weight: 800;
-      line-height: 1.08;
+      line-height: 1.1;
       letter-spacing: -0.03em;
       color: var(--sidebar-text);
     }
 
-    .sidebar-accent-rule {
+    .accent-rule {
       width: 2rem;
       height: 2px;
       background: var(--accent);
       border-radius: 1px;
-      margin: 1.5rem 0 2rem;
-    }
-
-    .sidebar-section-label {
-      font-size: 0.6875rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--sidebar-muted);
-      margin-bottom: 0.875rem;
-      display: block;
+      margin: 1.25rem 0 1.75rem;
     }
 
     .sidebar-label {
+      display: block;
       font-size: 0.6875rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.09em;
+      letter-spacing: 0.1em;
       color: var(--sidebar-muted);
-      display: block;
       margin-bottom: 0.375rem;
+    }
+
+    .sidebar-section-label {
+      display: block;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--sidebar-muted);
+      margin-bottom: 0.75rem;
     }
 
     .sidebar-input {
@@ -101,21 +90,16 @@
       font-family: inherit;
       color: var(--sidebar-text);
       outline: none;
-      transition: border-color 0.15s ease, background 0.15s ease;
+      transition: border-color 0.15s, background 0.15s;
       appearance: none;
-      -webkit-appearance: none;
     }
 
-    .sidebar-input::placeholder {
-      color: rgba(232, 233, 239, 0.45);
-    }
-
+    .sidebar-input::placeholder { color: rgba(232,233,239,0.35); }
     .sidebar-input:focus {
-      border-color: var(--sidebar-input-focus);
+      border-color: rgba(255,255,255,0.45);
       background: rgba(255,255,255,0.09);
     }
 
-    /* Select chevron */
     .sidebar-select-wrap { position: relative; }
     .sidebar-select-wrap::after {
       content: '';
@@ -129,7 +113,6 @@
       border-top: 5px solid var(--sidebar-muted);
     }
 
-    /* Input with icon */
     .input-icon { position: relative; }
     .input-icon .icon {
       position: absolute;
@@ -145,7 +128,7 @@
       background: var(--sidebar-dropdown-bg);
       border: 1px solid rgba(255,255,255,0.10);
       border-radius: 8px;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.6);
     }
 
     .sidebar-dropdown-item {
@@ -161,17 +144,13 @@
 
     .sidebar-dropdown-item:first-child { border-radius: 7px 7px 0 0; }
     .sidebar-dropdown-item:last-child  { border-radius: 0 0 7px 7px; }
-
     .sidebar-dropdown-item:hover,
-    .sidebar-dropdown-item.active {
-      background: rgba(255,255,255,0.08);
-    }
+    .sidebar-dropdown-item.active { background: rgba(255,255,255,0.08); }
 
     .sidebar-dropdown-crs {
       font-size: 0.6875rem;
       color: var(--sidebar-muted);
       font-variant-numeric: tabular-nums;
-      margin-left: 0.625rem;
       letter-spacing: 0.05em;
     }
 
@@ -189,15 +168,10 @@
       cursor: pointer;
       font-size: 1rem;
       transition: border-color 0.15s, color 0.15s;
-      line-height: 1;
     }
+    .swap-btn:hover { border-color: rgba(255,255,255,0.35); color: var(--sidebar-text); }
 
-    .swap-btn:hover {
-      border-color: rgba(255,255,255,0.35);
-      color: var(--sidebar-text);
-    }
-
-    /* Day radios */
+    /* Radio buttons */
     .day-radio-label {
       display: flex;
       align-items: center;
@@ -208,9 +182,8 @@
       padding: 0.1875rem 0;
       user-select: none;
     }
-
     .day-radio-label input[type="radio"] {
-      accent-color: var(--sidebar-text);
+      accent-color: var(--accent);
       width: 1rem;
       height: 1rem;
       cursor: pointer;
@@ -220,248 +193,93 @@
     /* Search button */
     .search-btn {
       width: 100%;
-      background: var(--btn-bg);
-      color: var(--btn-text);
+      background: #FFFFFF;
+      color: #0F1117;
       border: none;
       border-radius: 8px;
       padding: 0.8125rem 1rem;
       font-size: 0.875rem;
       font-weight: 600;
       font-family: inherit;
-      letter-spacing: 0.025em;
+      letter-spacing: 0.02em;
       cursor: pointer;
-      transition: background 0.15s ease;
+      transition: background 0.15s;
     }
-
-    .search-btn:hover  { background: var(--btn-hover-bg); }
+    .search-btn:hover  { background: #E8E9EF; }
     .search-btn:active { background: #D4D3CF; }
 
-    /* Sidebar error */
-    .sidebar-error {
-      font-size: 0.75rem;
-      color: #FCA5A5;   /* 9.8:1 on sidebar bg ✓ AAA */
-      margin-bottom: 0.625rem;
-    }
-
-    /* Divider between sections in sidebar */
     .sidebar-divider {
       border: none;
       border-top: 1px solid rgba(255,255,255,0.07);
       margin: 1.5rem 0;
     }
 
-    /* ── Content area ──────────────────────────────────────── */
-    .content-heading {
-      font-size: 1.4375rem;
-      font-weight: 700;
-      color: var(--body-text);
-      letter-spacing: -0.015em;
-      line-height: 1.2;
+    .sidebar-error {
+      font-size: 0.75rem;
+      color: #FCA5A5;
+      margin-bottom: 0.625rem;
     }
 
-    .content-subheading {
-      font-size: 0.8125rem;
-      color: var(--muted-text);
-      margin-top: 0.25rem;
-    }
-
-    .state-empty-text {
-      font-size: 0.875rem;
-      color: var(--muted-text);
-    }
-
-    /* ── Train cards ───────────────────────────────────────── */
+    /* ── Train cards ────────────────────────────────────────── */
     .train-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      padding: 0.875rem 1rem;
-      text-align: left;
-      cursor: pointer;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
       display: block;
       width: 100%;
+      text-align: left;
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 10px;
+      padding: 0.875rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
     }
-
     .train-card:hover {
-      border-color: #B0AFA9;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      border-color: #9CA3AF;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-
     .train-card.selected {
       border-color: var(--color-on-time);
       border-left-width: 3px;
       background: #F0FDF4;
-      box-shadow: 0 2px 10px rgba(22,163,74,0.10);
+      box-shadow: 0 2px 8px rgba(22,163,74,0.12);
     }
 
-    .train-card-time {
-      font-size: 1.125rem;
-      font-weight: 700;
-      color: var(--body-text);
-      font-variant-numeric: tabular-nums;
-      font-feature-settings: "tnum";
-      letter-spacing: -0.01em;
-      line-height: 1;
-    }
-
-    .train-card-operator {
-      font-size: 0.6875rem;
-      color: var(--muted-text);
-      margin-top: 0.3125rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    /* ── Stat cards ────────────────────────────────────────── */
-    .stat-card {
-      background: var(--card-bg);
-      border-radius: 16px;
-      border: 1px solid var(--card-border);
-      padding: 1.375rem 1.25rem 1.125rem;
-      text-align: center;
+    /* ── KPI stat cards — Flowbite pattern ──────────────────── */
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 1.25rem;
       position: relative;
       overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-
-    .stat-card::before {
-      content: '';
+    .kpi-card-bar {
       position: absolute;
       top: 0; left: 0; right: 0;
       height: 3px;
-      border-radius: 16px 16px 0 0;
+      border-radius: 12px 12px 0 0;
     }
 
-    .stat-card--green::before { background: var(--color-on-time);  }
-    .stat-card--amber::before { background: var(--color-avg-late); }
-    .stat-card--red::before   { background: var(--color-cancelled); }
-
-    .stat-card-label {
-      font-size: 0.6875rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: #6B7280;   /* 5.8:1 on white ✓ AA */
-      margin-bottom: 0.5rem;
-      display: block;
-    }
-
-    .stat-card-value {
-      font-size: 3rem;
-      font-weight: 800;
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-      font-feature-settings: "tnum";
-      letter-spacing: -0.03em;
-    }
-
-    .stat-card-value--green { color: var(--color-on-time);   }
-    .stat-card-value--amber { color: var(--color-avg-late);  }
-    .stat-card-value--red   { color: var(--color-cancelled); }
-
-    /* ── Chart card ────────────────────────────────────────── */
-    .chart-card {
-      background: var(--card-bg);
-      border-radius: 16px;
-      border: 1px solid var(--card-border);
-      padding: 1.5rem;
-    }
-
-    .chart-card-heading {
-      font-size: 0.6875rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: #6B7280;
-      margin-bottom: 1.25rem;
-    }
-
-    /* ── Alert boxes ───────────────────────────────────────── */
-    .alert-warning {
-      background: #FFFBEB;
-      border: 1px solid #FDE68A;
-      border-radius: 12px;
-      padding: 1.25rem;
-      text-align: center;
-    }
-    .alert-warning .alert-title {
-      font-weight: 600;
-      font-size: 0.875rem;
-      color: #92400E;   /* 7.2:1 on #FFFBEB ✓ AA */
-    }
-    .alert-warning .alert-body {
-      font-size: 0.75rem;
-      color: #B45309;   /* 5.4:1 on #FFFBEB ✓ AA */
-      margin-top: 0.25rem;
-    }
-
-    .alert-error {
-      background: #FEF2F2;
-      border: 1px solid #FECACA;
-      border-radius: 12px;
-      padding: 1.25rem;
-      text-align: center;
-    }
-    .alert-error .alert-title {
-      font-weight: 600;
-      font-size: 0.875rem;
-      color: #991B1B;   /* 6.3:1 on #FEF2F2 ✓ AA */
-    }
-    .alert-error .alert-body {
-      font-size: 0.75rem;
-      color: #B91C1C;   /* 5.8:1 on #FEF2F2 ✓ AA */
-      margin-top: 0.25rem;
-    }
-
-    /* ── Footer note ───────────────────────────────────────── */
-    .footer-note {
-      font-size: 0.6875rem;
-      color: var(--muted-text);
-      text-align: center;
-      padding-bottom: 0.5rem;
-    }
-
-    /* ── Loading spinner ───────────────────────────────────── */
-    .spinner-ring {
-      width: 1.75rem;
-      height: 1.75rem;
-      border: 2px solid rgba(107,114,128,0.2);
-      border-top-color: #6B7280;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      margin: 0 auto 0.625rem;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── "No trains" inline message ────────────────────────── */
-    #noTrainsMsg {
-      background: #FFFBEB;
-      border: 1px solid #FDE68A;
-      border-radius: 10px;
-      padding: 0.875rem 1rem;
-      font-size: 0.875rem;
-      color: #92400E;
-    }
+    /* ── Flowbite spinner ───────────────────────────────────── */
+    @keyframes fb-spin { to { transform: rotate(360deg); } }
+    .fb-spinner { animation: fb-spin 0.75s linear infinite; }
   </style>
 </head>
 <body class="min-h-screen">
 
 <div class="flex flex-col lg:flex-row min-h-screen">
 
-  <!-- ── Left panel ── -->
-  <aside class="sidebar w-full lg:w-80 lg:min-h-screen p-8 lg:sticky lg:top-0 lg:self-start flex-shrink-0">
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto p-8">
 
     <h1 class="sidebar-heading">How late is<br>my train?</h1>
-    <div class="sidebar-accent-rule" aria-hidden="true"></div>
+    <div class="accent-rule" aria-hidden="true"></div>
 
     <!-- From -->
     <div class="mb-4">
       <label class="sidebar-label" for="fromInput">From</label>
       <div class="input-icon relative">
-        <input id="fromInput" type="text" autocomplete="off" placeholder="Station"
-          class="sidebar-input tabular">
+        <input id="fromInput" type="text" autocomplete="off" placeholder="Station" class="sidebar-input tabular">
         <input type="hidden" id="fromCrs">
         <svg class="icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -480,8 +298,7 @@
     <div class="mb-5">
       <label class="sidebar-label" for="toInput">To</label>
       <div class="input-icon relative">
-        <input id="toInput" type="text" autocomplete="off" placeholder="Station"
-          class="sidebar-input tabular">
+        <input id="toInput" type="text" autocomplete="off" placeholder="Station" class="sidebar-input tabular">
         <input type="hidden" id="toCrs">
         <svg class="icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -492,7 +309,6 @@
 
     <hr class="sidebar-divider">
 
-    <!-- When do you travel -->
     <span class="sidebar-section-label">When do you travel?</span>
 
     <!-- Time -->
@@ -521,82 +337,171 @@
 
   </aside>
 
-  <!-- ── Right content area ── -->
-  <main class="flex-1 p-6 lg:p-12 min-w-0">
+  <!-- ── Main content ── -->
+  <main class="flex-1 min-w-0 p-6 lg:p-10">
 
     <!-- Empty state -->
-    <div id="stateEmpty" class="h-full flex items-center justify-center min-h-64">
-      <p class="state-empty-text">Search a route to see performance data</p>
+    <div id="stateEmpty" class="h-full flex flex-col items-center justify-center min-h-72 text-center gap-3">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center bg-gray-100">
+        <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 1-.987-1.106v-.958"/>
+        </svg>
+      </div>
+      <div>
+        <p class="text-sm font-medium text-gray-600">Search a route to see performance data</p>
+        <p class="text-xs text-gray-400 mt-0.5">Select stations, departure time, and day type</p>
+      </div>
     </div>
 
     <!-- Loading state -->
-    <div id="stateLoading" class="hidden h-full flex items-center justify-center min-h-64">
-      <div class="text-center">
-        <div class="spinner-ring"></div>
-        <p class="text-sm" style="color:var(--muted-text)">Finding trains…</p>
+    <div id="stateLoading" class="hidden h-full flex flex-col items-center justify-center min-h-72 gap-3">
+      <div role="status" class="flex flex-col items-center gap-3">
+        <!-- Flowbite spinner SVG -->
+        <svg aria-hidden="true" class="fb-spinner w-8 h-8 text-gray-200 fill-gray-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M100 50.59C100 78.2 77.61 100.59 50 100.59S0 78.2 0 50.59 22.39.59 50 .59s50 22.4 50 50Z" fill="currentColor"/>
+          <path d="M93.97 39.04c2.43-.64 3.9-3.16 3.03-5.52A50 50 0 0 0 5.9 25.3c-1.22 2.22-.3 4.97 2.04 5.87l1.8.69c2.34.9 5.05-.05 6.26-2.27a37.5 37.5 0 0 1 67.93 6.56c.68 2.34 3.13 3.63 5.47 2.97l.58-.16Z" fill="currentFill"/>
+        </svg>
+        <span class="sr-only">Loading…</span>
+        <p class="text-sm text-gray-500">Finding trains…</p>
       </div>
     </div>
 
     <!-- Train picker -->
     <div id="stateTrains" class="hidden">
-      <h2 class="content-heading mb-1">Select your train</h2>
-      <p id="trainSubheader" class="content-subheading mb-6"></p>
-      <div id="trainCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-4"></div>
-      <div id="trainLoadingMore" class="hidden text-center py-8">
-        <div class="spinner-ring"></div>
-        <p class="text-xs" style="color:var(--muted-text)">Loading performance data…</p>
+      <div class="mb-5">
+        <h2 class="text-xl font-bold text-gray-900 tracking-tight">Select your train</h2>
+        <p id="trainSubheader" class="text-sm text-gray-500 mt-0.5"></p>
       </div>
-      <p id="noTrainsMsg" class="hidden">No trains found around that time. Try a different time.</p>
+      <div id="trainCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-4"></div>
+
+      <!-- Loading performance -->
+      <div id="trainLoadingMore" class="hidden flex items-center gap-2.5 py-3">
+        <svg aria-hidden="true" class="fb-spinner w-5 h-5 text-gray-200 fill-gray-500" viewBox="0 0 100 101" fill="none">
+          <path d="M100 50.59C100 78.2 77.61 100.59 50 100.59S0 78.2 0 50.59 22.39.59 50 .59s50 22.4 50 50Z" fill="currentColor"/>
+          <path d="M93.97 39.04c2.43-.64 3.9-3.16 3.03-5.52A50 50 0 0 0 5.9 25.3c-1.22 2.22-.3 4.97 2.04 5.87l1.8.69c2.34.9 5.05-.05 6.26-2.27a37.5 37.5 0 0 1 67.93 6.56c.68 2.34 3.13 3.63 5.47 2.97l.58-.16Z" fill="currentFill"/>
+        </svg>
+        <p class="text-sm text-gray-500">Loading performance data…</p>
+      </div>
+
+      <!-- No trains — Flowbite warning alert -->
+      <div id="noTrainsMsg" class="hidden flex items-center p-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 border border-yellow-200" role="alert">
+        <svg class="flex-shrink-0 w-4 h-4 me-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+        </svg>
+        No trains found around that time. Try a different time.
+      </div>
     </div>
 
     <!-- Results -->
     <div id="stateResults" class="hidden space-y-5">
 
-      <div class="flex items-start justify-between">
+      <!-- Header row -->
+      <div class="flex items-start justify-between gap-4">
         <div>
-          <h2 id="resultsTitle" class="content-heading" style="font-size:1.5rem"></h2>
-          <p id="resultsSubtitle" class="content-subheading"></p>
+          <h2 id="resultsTitle" class="text-2xl font-bold text-gray-900 tracking-tight"></h2>
+          <p id="resultsSubtitle" class="text-sm text-gray-500 mt-0.5"></p>
         </div>
-        <button onclick="showState('stateTrains')"
-          class="text-xs mt-1 transition-colors"
-          style="color:var(--muted-text)"
-          onmouseover="this.style.color='var(--body-text)'"
-          onmouseout="this.style.color='var(--muted-text)'">← Change train</button>
+        <button onclick="showState('stateTrains')" type="button"
+          class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors mt-1 whitespace-nowrap">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+          </svg>
+          Change train
+        </button>
       </div>
 
-      <!-- Stat cards -->
-      <div class="grid grid-cols-3 gap-4">
-        <div class="stat-card stat-card--green">
-          <span class="stat-card-label">On time</span>
-          <p id="cardOnTime" class="stat-card-value stat-card-value--green tabular">—</p>
+      <!-- KPI stat cards — Flowbite pattern with icon -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        <!-- On time -->
+        <div class="kpi-card">
+          <div class="kpi-card-bar" style="background: var(--color-on-time);"></div>
+          <div class="flex items-start justify-between">
+            <div class="min-w-0">
+              <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 block mb-1.5">On time</span>
+              <p id="cardOnTime" class="tabular text-4xl font-extrabold leading-none" style="color: var(--color-on-time); letter-spacing: -0.03em;">—</p>
+              <p class="text-xs text-gray-400 mt-2">of journeys</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ml-3" style="background: #F0FDF4;">
+              <svg class="w-5 h-5" style="color: var(--color-on-time);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+              </svg>
+            </div>
+          </div>
         </div>
-        <div class="stat-card stat-card--amber">
-          <span class="stat-card-label">Avg late</span>
-          <p id="cardAvgLate" class="stat-card-value stat-card-value--amber tabular">—</p>
+
+        <!-- Avg delay -->
+        <div class="kpi-card">
+          <div class="kpi-card-bar" style="background: var(--color-avg-late);"></div>
+          <div class="flex items-start justify-between">
+            <div class="min-w-0">
+              <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 block mb-1.5">Avg delay</span>
+              <p id="cardAvgLate" class="tabular text-4xl font-extrabold leading-none" style="color: var(--color-avg-late); letter-spacing: -0.03em;">—</p>
+              <p class="text-xs text-gray-400 mt-2">when running late</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ml-3" style="background: #FFFBEB;">
+              <svg class="w-5 h-5" style="color: var(--color-avg-late);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+              </svg>
+            </div>
+          </div>
         </div>
-        <div class="stat-card stat-card--red">
-          <span class="stat-card-label">Cancelled</span>
-          <p id="cardCancelled" class="stat-card-value stat-card-value--red tabular">—</p>
+
+        <!-- Cancelled -->
+        <div class="kpi-card">
+          <div class="kpi-card-bar" style="background: var(--color-cancelled);"></div>
+          <div class="flex items-start justify-between">
+            <div class="min-w-0">
+              <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 block mb-1.5">Cancelled</span>
+              <p id="cardCancelled" class="tabular text-4xl font-extrabold leading-none" style="color: var(--color-cancelled); letter-spacing: -0.03em;">—</p>
+              <p class="text-xs text-gray-400 mt-2">of journeys</p>
+            </div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ml-3" style="background: #FEF2F2;">
+              <svg class="w-5 h-5" style="color: var(--color-cancelled);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Chart — Flowbite card -->
+      <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-900">Delay distribution</h3>
+            <p class="text-xs text-gray-400 mt-0.5">% of journeys by lateness bucket</p>
+          </div>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Last 6 months</span>
+        </div>
+        <canvas id="delayChart" height="160"></canvas>
+      </div>
+
+      <!-- No data — Flowbite warning alert -->
+      <div id="noDataAlert" class="hidden flex items-start p-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 border border-yellow-200" role="alert">
+        <svg class="flex-shrink-0 w-4 h-4 me-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+        </svg>
+        <div>
+          <span class="font-semibold">No capture data yet for this service</span>
+          <p class="mt-1 text-yellow-700">Data builds up automatically as your commute is tracked. Run <code class="bg-yellow-100 px-1 py-0.5 rounded text-xs font-mono">rtt-backfill</code> to seed history immediately.</p>
         </div>
       </div>
 
-      <!-- Chart -->
-      <div class="chart-card">
-        <h3 class="chart-card-heading">Delay distribution</h3>
-        <canvas id="delayChart" height="180"></canvas>
+      <!-- Error — Flowbite danger alert -->
+      <div id="errorAlert" class="hidden flex items-start p-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200" role="alert">
+        <svg class="flex-shrink-0 w-4 h-4 me-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+        </svg>
+        <div>
+          <span class="font-semibold">Couldn't load performance data</span>
+          <p id="errorAlertMsg" class="mt-1 text-red-700"></p>
+        </div>
       </div>
 
-      <!-- Alert states -->
-      <div id="noDataAlert" class="alert-warning hidden">
-        <p class="alert-title">No historical data found for this service</p>
-        <p class="alert-body">The route or time may not be in HSP. Try a different train.</p>
-      </div>
-      <div id="errorAlert" class="alert-error hidden">
-        <p class="alert-title">Couldn't load performance data</p>
-        <p id="errorAlertMsg" class="alert-body"></p>
-      </div>
+      <p id="footerNote" class="text-xs text-center text-gray-400 pb-1"></p>
 
-      <p id="footerNote" class="footer-note"></p>
     </div>
 
   </main>
@@ -724,7 +629,7 @@ makeAutocomplete('toInput',   'toDropdown',   'toCrs');
 
 function swapStations() {
   const fn = currentFromName, fc = currentFromCrs;
-  setStation('from', currentToName,  currentToCrs);
+  setStation('from', currentToName, currentToCrs);
   setStation('to',   fn, fc);
 }
 
@@ -778,8 +683,9 @@ function runSearch() {
     .catch(() => {
       showState('stateTrains');
       document.getElementById('trainCards').innerHTML = '';
-      document.getElementById('noTrainsMsg').textContent = 'Could not connect to the server.';
-      document.getElementById('noTrainsMsg').classList.remove('hidden');
+      const msg = document.getElementById('noTrainsMsg');
+      msg.textContent = 'Could not connect to the server.';
+      msg.classList.remove('hidden');
     });
 }
 
@@ -788,9 +694,10 @@ function renderTrainCards(trains, days) {
     const dep = t.departure.length === 4
       ? t.departure.slice(0,2) + ':' + t.departure.slice(2)
       : t.departure;
+    const op = t.operator ? `<span class="inline-block text-xs font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 truncate max-w-full mt-1.5">${t.operator}</span>` : '';
     return `<button onclick="selectTrain('${t.departure}','${days}')" class="train-card">
-      <p class="train-card-time">${dep}</p>
-      <p class="train-card-operator">${t.operator || ''}</p>
+      <p class="tabular text-xl font-bold text-gray-900 leading-none tracking-tight">${dep}</p>
+      ${op}
     </button>`;
   }).join('');
 }
@@ -798,10 +705,9 @@ function renderTrainCards(trains, days) {
 function selectTrain(departure, days) {
   currentDeparture = departure;
   document.querySelectorAll('#trainCards .train-card').forEach(b => b.classList.remove('selected'));
-  // Match the card whose displayed time equals the departure (e.g. "0835" → "08:35")
   const depFormatted = departure.slice(0,2) + ':' + departure.slice(2);
   document.querySelectorAll('#trainCards .train-card').forEach(b => {
-    if (b.querySelector('.train-card-time').textContent === depFormatted)
+    if (b.querySelector('.tabular').textContent === depFormatted)
       b.classList.add('selected');
   });
   document.getElementById('trainLoadingMore').classList.remove('hidden');
@@ -887,7 +793,7 @@ function fetchPerformance(from, to, departure, days) {
 
       const fmtDate = d => new Date(d).toLocaleDateString('en-GB', {month:'short', year:'numeric'});
       document.getElementById('footerNote').textContent =
-        `Based on ${data.total.toLocaleString()} journeys · ${fmtDate(data.from_date)} – ${fmtDate(data.to_date)} · Source: National Rail HSP`;
+        `Based on ${data.total.toLocaleString()} journeys · ${fmtDate(data.from_date)} – ${fmtDate(data.to_date)} · Source: RTT captures`;
     })
     .catch(err => {
       document.getElementById('trainLoadingMore').classList.add('hidden');
@@ -898,5 +804,6 @@ function fetchPerformance(from, to, departure, days) {
 }
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/flowbite@4.0.1/dist/flowbite.min.js"></script>
 </body>
 </html>
