@@ -69,10 +69,9 @@ class RTTConfig:
 
 @dataclass
 class ApiCredentials:
-    """Generic HTTP Basic auth credentials (used by HSP)."""
+    """HSP API credentials — Rail Data Marketplace x-apikey header auth."""
     base_url: str
-    username: str
-    password: str
+    api_key: str
 
 
 @dataclass
@@ -127,8 +126,7 @@ def load_config(path: Path | None = None) -> Config:
 
     hsp = ApiCredentials(
         base_url=raw["apis"]["hsp"]["base_url"].rstrip("/"),
-        username=raw["apis"]["hsp"]["username"],
-        password=raw["apis"]["hsp"]["password"],
+        api_key=raw["apis"]["hsp"]["api_key"],
     )
 
     # Resolve paths relative to the config file's directory

@@ -57,7 +57,7 @@ def run_backfill(config: Config, weeks_back: int = 1) -> dict:
         "errors": 0,
     }
 
-    with _make_client(config.hsp.base_url, config.hsp.username, config.hsp.password) as client:
+    with _make_client(config.hsp.base_url, config.hsp.api_key) as client:
         for week_i in range(1, weeks_back + 1):
             from_date, to_date = _date_range_for_week(week_i)
             logger.info("Backfilling week %d/%d: %s to %s", week_i, weeks_back, from_date, to_date)

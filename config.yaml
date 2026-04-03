@@ -22,9 +22,8 @@ apis:
     # Used automatically to obtain short-lived access tokens
     refresh_token: "${RTT_REFRESH_TOKEN}"
   hsp:
-    base_url: "https://hsp-prod.rockshore.net/api/v1"
-    username: "${HSP_USERNAME}"
-    password: "${HSP_PASSWORD}"
+    base_url: "https://api1.raildata.org.uk/1010-historical-service-performance-_hsp_v1/api/v1"
+    api_key: "${HSP_API_KEY}"
 
 attribution:
   csv_directory: "./data/attribution"

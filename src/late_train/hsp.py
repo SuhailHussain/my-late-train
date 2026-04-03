@@ -26,12 +26,15 @@ _MAX_RETRIES = 3
 _RETRY_DELAYS = [2, 4, 8]
 
 
-def _make_client(base_url: str, username: str, password: str) -> httpx.Client:
+def _make_client(base_url: str, api_key: str) -> httpx.Client:
     return httpx.Client(
         base_url=base_url,
-        auth=(username, password),
         timeout=120.0,
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "x-apikey": api_key,
+        },
     )
 
 

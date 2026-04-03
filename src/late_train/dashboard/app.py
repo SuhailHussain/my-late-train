@@ -24,7 +24,7 @@ from late_train.db import (
     query_worst_days,
     query_delay_reasons,
     query_hsp_summary,
-    upsert_hsp_metrics,
+    query_performance_from_db,
 )
 
 _DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent.parent / "config.yaml"
@@ -266,9 +266,8 @@ def create_app(config: Config | None = None) -> Flask:
 
     @app.route("/api/performance")
     def api_performance():
-        """Return HSP historical performance for a specific route + departure time."""
+        """Return historical performance for a specific route + departure time from local DB."""
         import logging as _logging
-        from late_train.hsp import _make_client as hsp_client, get_service_metrics
         _log = _logging.getLogger(__name__)
 
         cfg = get_config()
@@ -284,94 +283,29 @@ def create_app(config: Config | None = None) -> Flask:
         departure = departure.replace(":", "")
 
         try:
-            h, m = int(departure[:2]), int(departure[2:])
+            int(departure[:2]), int(departure[2:])
         except (ValueError, IndexError):
             return jsonify({"error": "Invalid departure time"}), 400
 
-        dep_dt = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
-        from_time = (dep_dt - timedelta(minutes=45)).strftime("%H%M")
-        to_time = (dep_dt + timedelta(minutes=45)).strftime("%H%M")
-
-        today = date.today()
-        from_date = (today - timedelta(days=months * 30)).isoformat()
-        to_date = today.isoformat()
-
         _log.info(
-            "HSP query: %s→%s time=%s-%s date=%s-%s days=%s",
-            origin, destination, from_time, to_time, from_date, to_date, days
+            "DB performance query: %s→%s dep=%s days=%s months=%s",
+            origin, destination, departure, days, months,
         )
 
-        try:
-            with hsp_client(cfg.hsp.base_url, cfg.hsp.username, cfg.hsp.password) as client:
-                buckets, rids = get_service_metrics(
-                    client, origin, destination,
-                    from_time, to_time,
-                    from_date, to_date,
-                    days,
-                )
-        except Exception as exc:
-            _log.warning("HSP query failed: %s", exc)
-            return jsonify({"error": str(exc)}), 503
+        with get_connection(cfg.database_path) as conn:
+            result = query_performance_from_db(conn, origin, destination, departure, days, months)
 
-        _log.info("HSP buckets: %s  rids: %d", buckets, len(rids))
+        if result["total"] == 0:
+            return jsonify({
+                "total": 0,
+                "error": (
+                    "No capture data yet for this service. "
+                    "Run rtt-backfill to seed history, or data builds up automatically "
+                    "as your commute is tracked."
+                ),
+            })
 
-        total = buckets.get("total_services", 0)
-        if total == 0:
-            return jsonify({"total": 0, "error": "No data found for this service"})
-
-        def pct(n):
-            return round(100 * n / total, 1) if total else 0
-
-        on_time   = buckets.get("on_time_count", 0)
-        l_1_5     = buckets.get("late_1_5_count", 0)
-        l_5_10    = buckets.get("late_5_10_count", 0)
-        l_10_15   = buckets.get("late_10_15_count", 0)
-        l_15_20   = buckets.get("late_15_20_count", 0)
-        l_20_30   = buckets.get("late_20_30_count", 0)
-        l_30_plus = buckets.get("late_30_plus_count", 0)
-        cancelled = buckets.get("cancel_count", 0)
-
-        total_late = l_1_5 + l_5_10 + l_10_15 + l_15_20 + l_20_30 + l_30_plus
-        if total_late:
-            weighted = (l_1_5*3 + l_5_10*7.5 + l_10_15*12.5 + l_15_20*17.5 + l_20_30*25 + l_30_plus*35)
-            avg_late = round(weighted / total_late, 1)
-        else:
-            avg_late = None
-
-        try:
-            with get_connection(cfg.database_path) as conn:
-                upsert_hsp_metrics(conn, {
-                    "origin": origin, "destination": destination,
-                    "from_time": from_time, "to_time": to_time,
-                    "period_start": from_date, "period_end": to_date,
-                    "total_services": total,
-                    "on_time_count": on_time,
-                    "late_1_5_count": l_1_5,
-                    "late_5_10_count": l_5_10,
-                    "late_10_15_count": l_10_15,
-                    "late_15_20_count": l_15_20,
-                    "late_20_30_count": l_20_30,
-                    "late_30_plus_count": l_30_plus,
-                    "cancel_count": cancelled,
-                    "retrieved_at": datetime.now(timezone.utc).isoformat(),
-                })
-        except Exception:
-            pass
-
-        return jsonify({
-            "total": total,
-            "from_date": from_date,
-            "to_date": to_date,
-            "pct_on_time":      pct(on_time),
-            "pct_late_1_5":     pct(l_1_5),
-            "pct_late_5_10":    pct(l_5_10),
-            "pct_late_10_15":   pct(l_10_15),
-            "pct_late_15_20":   pct(l_15_20),
-            "pct_late_20_30":   pct(l_20_30),
-            "pct_late_30_plus": pct(l_30_plus),
-            "pct_cancelled":    pct(cancelled),
-            "avg_late_mins":    avg_late,
-        })
+        return jsonify(result)
 
     return app
 
