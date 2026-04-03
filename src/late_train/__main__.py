@@ -68,6 +68,35 @@ def _cmd_backfill(args: argparse.Namespace) -> None:
     run_backfill(config, weeks_back=args.weeks)
 
 
+def _cmd_rtt_backfill(args: argparse.Namespace) -> None:
+    from late_train.config import load_config
+    from late_train.rtt_backfill import run_rtt_backfill
+
+    config = load_config(args.config)
+    _setup_logging(config.log_level, config.log_file)
+
+    if args.dry_run:
+        from datetime import date as _date, timedelta as _td
+        weekdays = sum(
+            1 for i in range(1, args.weeks * 7 + 1)
+            if (_date.today() - _td(days=i)).weekday() < 5
+        )
+        estimated_calls = weekdays * 14
+        print(f"Dry run: {weekdays} weekdays × ~14 API calls = ~{estimated_calls} total")
+        print(f"RTT free-tier daily limit: ~1000 calls")
+        return
+
+    result = run_rtt_backfill(config, weeks_back=args.weeks, delay_secs=args.rate_limit_delay_secs)
+    print(
+        f"RTT backfill complete: "
+        f"{result['dates_processed']} dates processed, "
+        f"{result['dates_skipped']} skipped, "
+        f"{result['observations_upserted']} observations upserted, "
+        f"{result['api_calls']} API calls, "
+        f"{result['errors']} errors"
+    )
+
+
 def _cmd_attribution(args: argparse.Namespace) -> None:
     from late_train.config import load_config
     from late_train.attribution import ingest_new_csvs
@@ -116,6 +145,22 @@ def main() -> None:
         help="Number of weeks to backfill (default: 1, max: 52)",
     )
     p_backfill.set_defaults(func=_cmd_backfill)
+
+    # rtt-backfill
+    p_rtt_backfill = sub.add_parser("rtt-backfill", help="Backfill history from RTT API")
+    p_rtt_backfill.add_argument(
+        "--weeks", type=int, default=1,
+        help="Number of weeks to backfill (default: 1, max: 12)",
+    )
+    p_rtt_backfill.add_argument(
+        "--dry-run", action="store_true",
+        help="Print estimated API call count without fetching anything",
+    )
+    p_rtt_backfill.add_argument(
+        "--rate-limit-delay-secs", type=float, default=0.5, metavar="SECS",
+        help="Sleep between service detail calls (default: 0.5)",
+    )
+    p_rtt_backfill.set_defaults(func=_cmd_rtt_backfill)
 
     # attribution
     p_attr = sub.add_parser("attribution", help="Ingest NR attribution CSVs from data/attribution/")

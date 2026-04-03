@@ -16,6 +16,7 @@ from late_train.db import (
     query_daily_trends,
     query_worst_days,
     query_delay_reasons,
+    query_performance_from_db,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -161,3 +162,79 @@ def test_query_worst_days(db_path):
         results = query_worst_days(conn, limit=2)
         assert len(results) == 2
         assert results[0]["run_date"] == "2026-03-11"  # highest avg delay first
+
+
+# ---------------------------------------------------------------------------
+# query_performance_from_db
+# ---------------------------------------------------------------------------
+
+def _perf_obs(service_uid, run_date, delay, cancelled=0):
+    """Helper: observation on a known Monday (2026-03-09) with scheduled_departure 07:45."""
+    return {
+        "service_uid": service_uid,
+        "run_date": run_date,
+        "scheduled_departure": "07:45",
+        "actual_departure": "07:50",
+        "scheduled_arrival": "09:00",
+        "actual_arrival": "09:05" if not cancelled else None,
+        "delay_mins": delay,
+        "platform": "1",
+        "platform_changed": 0,
+        "cancelled": cancelled,
+        "cancel_reason_code": None,
+        "cancel_reason_text": None,
+        "is_actual": 1,
+        "source": "rtt",
+        "captured_at": _now(),
+    }
+
+
+def test_query_performance_from_db_no_data(db_path):
+    with get_connection(db_path) as conn:
+        result = query_performance_from_db(conn, "LBG", "BTN", "0745", "WEEKDAY", 24)
+    assert result == {"total": 0}
+
+
+def test_query_performance_from_db_basic(db_path):
+    # Seed varied delays on a Monday (2026-03-09)
+    with get_connection(db_path) as conn:
+        upsert_observation(conn, _perf_obs("A1", "2026-03-09", delay=0))    # on-time
+        upsert_observation(conn, _perf_obs("A2", "2026-03-09", delay=3))    # 1-5
+        upsert_observation(conn, _perf_obs("A3", "2026-03-09", delay=7))    # 5-10
+        upsert_observation(conn, _perf_obs("A4", "2026-03-09", delay=12))   # 10-15
+        upsert_observation(conn, _perf_obs("A5", "2026-03-09", delay=18))   # 15-20
+        upsert_observation(conn, _perf_obs("A6", "2026-03-09", delay=25))   # 20-30
+        upsert_observation(conn, _perf_obs("A7", "2026-03-09", delay=35))   # 30+
+        upsert_observation(conn, _perf_obs("A8", "2026-03-09", delay=None, cancelled=1))
+
+        result = query_performance_from_db(conn, "LBG", "BTN", "0745", "WEEKDAY", 24)
+
+    assert result["total"] == 8
+    # Bucket percentages should sum to 100%
+    bucket_sum = (
+        result["pct_on_time"] + result["pct_late_1_5"] + result["pct_late_5_10"]
+        + result["pct_late_10_15"] + result["pct_late_15_20"] + result["pct_late_20_30"]
+        + result["pct_late_30_plus"] + result["pct_cancelled"]
+    )
+    assert abs(bucket_sum - 100.0) < 0.5
+    assert result["pct_cancelled"] == 12.5
+    assert result["avg_late_mins"] is not None
+    assert result["from_date"] == "2026-03-09"
+    assert result["to_date"] == "2026-03-09"
+
+
+def test_query_performance_from_db_day_filter(db_path):
+    """WEEKDAY filter should exclude Saturday observations."""
+    with get_connection(db_path) as conn:
+        # Monday
+        upsert_observation(conn, _perf_obs("B1", "2026-03-09", delay=5))
+        # Saturday
+        upsert_observation(conn, _perf_obs("B2", "2026-03-14", delay=5))
+
+        weekday_result = query_performance_from_db(conn, "LBG", "BTN", "0745", "WEEKDAY", 24)
+        saturday_result = query_performance_from_db(conn, "LBG", "BTN", "0745", "SATURDAY", 24)
+
+    assert weekday_result["total"] == 1
+    assert weekday_result["from_date"] == "2026-03-09"
+    assert saturday_result["total"] == 1
+    assert saturday_result["from_date"] == "2026-03-14"

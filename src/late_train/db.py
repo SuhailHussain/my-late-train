@@ -323,3 +323,90 @@ def query_hsp_summary(conn: sqlite3.Connection) -> list[sqlite3.Row]:
            ORDER BY period_start DESC
            LIMIT 12""",
     ).fetchall()
+
+
+def query_performance_from_db(
+    conn: sqlite3.Connection,
+    origin: str,
+    destination: str,
+    departure_hhmm: str,
+    days: str,
+    months: int,
+) -> dict:
+    """Aggregate daily_observations into delay-bucket percentages.
+
+    Returns a dict matching the /api/performance JSON shape, or {"total": 0}
+    if no confirmed actual data exists for the given filters.
+
+    departure_hhmm: "HHMM" format (e.g. "0905") — converted to "HH:MM" internally.
+    days: "WEEKDAY" | "SATURDAY" | "SUNDAY"
+    months: look-back window in months (1–24)
+    """
+    dep_colon = f"{departure_hhmm[:2]}:{departure_hhmm[2:]}"
+
+    day_clauses = {
+        "WEEKDAY":  "CAST(strftime('%w', run_date) AS INTEGER) BETWEEN 1 AND 5",
+        "SATURDAY": "CAST(strftime('%w', run_date) AS INTEGER) = 6",
+        "SUNDAY":   "CAST(strftime('%w', run_date) AS INTEGER) = 0",
+    }
+    day_clause = day_clauses.get(days.upper(), day_clauses["WEEKDAY"])
+
+    _SQL = f"""
+        SELECT
+            COUNT(*) AS total,
+            MIN(run_date) AS from_date,
+            MAX(run_date) AS to_date,
+            SUM(CASE WHEN delay_mins <= 0 AND cancelled = 0 THEN 1 ELSE 0 END) AS on_time_count,
+            SUM(CASE WHEN delay_mins > 0  AND delay_mins <= 5  AND cancelled = 0 THEN 1 ELSE 0 END) AS late_1_5_count,
+            SUM(CASE WHEN delay_mins > 5  AND delay_mins <= 10 AND cancelled = 0 THEN 1 ELSE 0 END) AS late_5_10_count,
+            SUM(CASE WHEN delay_mins > 10 AND delay_mins <= 15 AND cancelled = 0 THEN 1 ELSE 0 END) AS late_10_15_count,
+            SUM(CASE WHEN delay_mins > 15 AND delay_mins <= 20 AND cancelled = 0 THEN 1 ELSE 0 END) AS late_15_20_count,
+            SUM(CASE WHEN delay_mins > 20 AND delay_mins <= 30 AND cancelled = 0 THEN 1 ELSE 0 END) AS late_20_30_count,
+            SUM(CASE WHEN delay_mins > 30                      AND cancelled = 0 THEN 1 ELSE 0 END) AS late_30_plus_count,
+            SUM(CASE WHEN cancelled = 1                                          THEN 1 ELSE 0 END) AS cancel_count,
+            ROUND(AVG(CASE WHEN delay_mins > 0 AND cancelled = 0
+                           THEN CAST(delay_mins AS REAL) END), 1) AS avg_late_mins
+        FROM daily_observations
+        WHERE is_actual = 1
+          AND {day_clause}
+          AND run_date >= date('now', ? || ' months')
+          AND scheduled_departure {{dep_filter}}
+    """
+
+    months_param = f"-{months}"
+
+    # Try exact match first
+    row = conn.execute(
+        _SQL.format(dep_filter="= ?"),
+        (months_param, dep_colon),
+    ).fetchone()
+
+    if row and row["total"] == 0:
+        # Fallback: ±2 minute tolerance for minor timetable changes
+        row = conn.execute(
+            _SQL.format(dep_filter="BETWEEN time(?, '-2 minutes') AND time(?, '+2 minutes')"),
+            (months_param, dep_colon, dep_colon),
+        ).fetchone()
+
+    if not row or row["total"] == 0:
+        return {"total": 0}
+
+    total = row["total"]
+
+    def pct(n):
+        return round(100 * (n or 0) / total, 1) if total else 0
+
+    return {
+        "total": total,
+        "from_date": row["from_date"],
+        "to_date": row["to_date"],
+        "pct_on_time":      pct(row["on_time_count"]),
+        "pct_late_1_5":     pct(row["late_1_5_count"]),
+        "pct_late_5_10":    pct(row["late_5_10_count"]),
+        "pct_late_10_15":   pct(row["late_10_15_count"]),
+        "pct_late_15_20":   pct(row["late_15_20_count"]),
+        "pct_late_20_30":   pct(row["late_20_30_count"]),
+        "pct_late_30_plus": pct(row["late_30_plus_count"]),
+        "pct_cancelled":    pct(row["cancel_count"]),
+        "avg_late_mins":    row["avg_late_mins"],
+    }

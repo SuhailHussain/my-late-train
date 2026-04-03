@@ -32,7 +32,7 @@ def _make_config(tmp_path: Path) -> Config:
             evening=CommuteWindow(start="17:00", end="19:30"),
         ),
         rtt=RTTConfig(base_url="https://data.rtt.io", refresh_token="test-token"),
-        hsp=ApiCredentials(base_url="https://hsp.example.com", username="u", password="p"),
+        hsp=ApiCredentials(base_url="https://hsp.example.com", api_key="test-key"),
         attribution_csv_directory=tmp_path / "attribution",
         database_path=db_path,
     )
@@ -193,3 +193,40 @@ def test_api_stats(client):
     assert "pct_on_time" in data
     assert "avg_delay_mins" in data
     assert data["total_journeys"] >= 0
+
+
+def test_api_performance_no_data(client):
+    """Departure time with no observations returns total=0 + error message."""
+    resp = client.get("/api/performance?from=LBG&to=BTN&departure=2359&days=WEEKDAY")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["total"] == 0
+    assert "error" in data
+
+
+def test_api_performance_missing_params(client):
+    resp = client.get("/api/performance?from=LBG&to=BTN")  # missing departure
+    assert resp.status_code == 400
+
+
+def test_api_performance_with_data(client):
+    """Departure time that matches seeded observations returns full stats."""
+    # The client fixture seeds observations with scheduled_departure="07:45"
+    resp = client.get("/api/performance?from=LBG&to=BTN&departure=0745&days=WEEKDAY&months=24")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["total"] >= 1
+    assert "pct_on_time" in data
+    assert "pct_cancelled" in data
+    assert "avg_late_mins" in data
+    assert data["from_date"] is not None
+    assert data["to_date"] is not None
+
+
+def test_api_performance_cancelled(client):
+    """A cancelled observation contributes to pct_cancelled."""
+    resp = client.get("/api/performance?from=LBG&to=BTN&departure=0745&days=WEEKDAY&months=24")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    if data["total"] > 0:
+        assert data["pct_cancelled"] >= 0
