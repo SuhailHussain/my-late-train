@@ -527,7 +527,7 @@ for (let h = 5; h < 24; h++) {
 }
 
 // ── Stations ──
-fetch('/api/stations').then(r => r.json()).then(data => {
+fetch('/static/stations.json').then(r => r.json()).then(data => {
   stations = data;
   const saved = JSON.parse(localStorage.getItem('mlt_route') || 'null');
   if (saved) {
