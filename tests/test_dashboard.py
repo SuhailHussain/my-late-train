@@ -1,10 +1,10 @@
 """Tests for the Flask dashboard API endpoints."""
 
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
+from helpers import _now, _obs
 from late_train.config import (
     ApiCredentials,
     CommuteWindow,
@@ -36,30 +36,6 @@ def _make_config(tmp_path: Path) -> Config:
         attribution_csv_directory=tmp_path / "attribution",
         database_path=db_path,
     )
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _obs(service_uid="W12345", run_date="2026-03-10", delay=5, cancelled=0):
-    return {
-        "service_uid": service_uid,
-        "run_date": run_date,
-        "scheduled_departure": "07:45",
-        "actual_departure": "07:50" if not cancelled else None,
-        "scheduled_arrival": "09:00",
-        "actual_arrival": "09:05" if not cancelled else None,
-        "delay_mins": delay if not cancelled else None,
-        "platform": "2",
-        "platform_changed": 0,
-        "cancelled": cancelled,
-        "cancel_reason_code": "IA" if cancelled else None,
-        "cancel_reason_text": "Signal failure" if cancelled else None,
-        "is_actual": 1,
-        "source": "rtt",
-        "captured_at": _now(),
-    }
 
 
 @pytest.fixture

@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -17,6 +18,11 @@ _ENV_RE = re.compile(r"\$\{([^}]+)\}")
 
 # Default config path relative to project root
 _DEFAULT_CONFIG = Path(__file__).parent.parent.parent / "config.yaml"
+
+
+def _resolve_path(raw: str, base_dir: Path) -> Path:
+    p = Path(raw)
+    return p if p.is_absolute() else base_dir / p
 
 
 def _resolve_env(value: str) -> str:
@@ -49,6 +55,14 @@ def _resolve_values(obj):
 class CommuteWindow:
     start: str  # HH:MM
     end: str    # HH:MM
+
+    def datetimes(self, for_date: date) -> tuple[datetime, datetime]:
+        h0, m0 = map(int, self.start.split(":"))
+        h1, m1 = map(int, self.end.split(":"))
+        return (
+            datetime(for_date.year, for_date.month, for_date.day, h0, m0),
+            datetime(for_date.year, for_date.month, for_date.day, h1, m1),
+        )
 
 
 @dataclass
@@ -132,20 +146,11 @@ def load_config(path: Path | None = None) -> Config:
     # Resolve paths relative to the config file's directory
     base_dir = config_path.parent
 
-    attribution_dir = Path(raw["attribution"]["csv_directory"])
-    if not attribution_dir.is_absolute():
-        attribution_dir = base_dir / attribution_dir
-
-    db_path = Path(raw["database"]["path"])
-    if not db_path.is_absolute():
-        db_path = base_dir / db_path
+    attribution_dir = _resolve_path(raw["attribution"]["csv_directory"], base_dir)
+    db_path = _resolve_path(raw["database"]["path"], base_dir)
 
     log_cfg = raw.get("logging", {})
-    log_file = None
-    if log_cfg.get("file"):
-        log_file = Path(log_cfg["file"])
-        if not log_file.is_absolute():
-            log_file = base_dir / log_file
+    log_file = _resolve_path(log_cfg["file"], base_dir) if log_cfg.get("file") else None
 
     return Config(
         route=route,

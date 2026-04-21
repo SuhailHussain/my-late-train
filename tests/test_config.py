@@ -20,8 +20,7 @@ def test_resolve_env_missing_raises(monkeypatch):
 
 def test_load_config(tmp_path, monkeypatch):
     monkeypatch.setenv("RTT_TOKEN", "my-refresh-token")
-    monkeypatch.setenv("HSP_USER", "hsp_user")
-    monkeypatch.setenv("HSP_PASS", "hsp_pass")
+    monkeypatch.setenv("HSP_KEY", "my-api-key")
 
     config_file = tmp_path / "config.yaml"
     config_file.write_text(textwrap.dedent("""\
@@ -44,8 +43,7 @@ def test_load_config(tmp_path, monkeypatch):
             refresh_token: "${RTT_TOKEN}"
           hsp:
             base_url: "https://hsp-prod.rockshore.net/api/v1"
-            username: "${HSP_USER}"
-            password: "${HSP_PASS}"
+            api_key: "${HSP_KEY}"
 
         attribution:
           csv_directory: "./data/attribution"
@@ -67,7 +65,7 @@ def test_load_config(tmp_path, monkeypatch):
     assert config.commute_windows.evening.end == "19:00"
     assert config.rtt.refresh_token == "my-refresh-token"
     assert config.rtt.base_url == "https://data.rtt.io"
-    assert config.hsp.username == "hsp_user"
+    assert config.hsp.api_key == "my-api-key"
     assert config.hsp.base_url == "https://hsp-prod.rockshore.net/api/v1"
     assert config.log_level == "DEBUG"
     assert config.database_path.name == "late_train.db"
@@ -80,8 +78,7 @@ def test_load_config_missing_file(tmp_path):
 
 def test_load_config_missing_credential_raises(tmp_path, monkeypatch):
     monkeypatch.delenv("RTT_REFRESH_TOKEN", raising=False)
-    monkeypatch.setenv("HSP_USER", "user")
-    monkeypatch.setenv("HSP_PASS", "pass")
+    monkeypatch.setenv("HSP_KEY", "key")
 
     config_file = tmp_path / "config.yaml"
     config_file.write_text(textwrap.dedent("""\
@@ -102,8 +99,7 @@ def test_load_config_missing_credential_raises(tmp_path, monkeypatch):
             refresh_token: "${RTT_REFRESH_TOKEN}"
           hsp:
             base_url: "https://hsp-prod.rockshore.net/api/v1"
-            username: "${HSP_USER}"
-            password: "${HSP_PASS}"
+            api_key: "${HSP_KEY}"
         attribution:
           csv_directory: "./data/attribution"
         database:

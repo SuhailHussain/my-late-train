@@ -68,32 +68,16 @@ def run_capture(config: Config, force: bool = False, run_date: date | None = Non
 
     # Build list of (time_from, time_to) windows to search
     if historical:
-        # Fetch all configured commute windows for the historical date
-        windows_to_search = []
-        for _, w in config.commute_windows.as_list():
-            tf = datetime.combine(target_date, datetime.min.time()).replace(
-                hour=int(w.start.split(":")[0]), minute=int(w.start.split(":")[1])
-            )
-            tt = datetime.combine(target_date, datetime.min.time()).replace(
-                hour=int(w.end.split(":")[0]), minute=int(w.end.split(":")[1])
-            )
-            windows_to_search.append((tf, tt))
+        windows_to_search = [w.datetimes(target_date) for _, w in config.commute_windows.as_list()]
     elif force or window is None:
         # Forced outside commute hours: 2-hour window from now
         tf = now.replace(second=0, microsecond=0)
         tt = now.replace(hour=min(now.hour + 2, 23), minute=59, second=0, microsecond=0)
         windows_to_search = [(tf, tt)]
     else:
-        tf = now.replace(
-            hour=int(window.start.split(":")[0]),
-            minute=int(window.start.split(":")[1]),
-            second=0, microsecond=0,
-        )
-        tt = now.replace(
-            hour=int(window.end.split(":")[0]),
-            minute=int(window.end.split(":")[1]),
-            second=0, microsecond=0,
-        )
+        tf, tt = window.datetimes(target_date)
+        tf = tf.replace(second=0, microsecond=0)
+        tt = tt.replace(second=0, microsecond=0)
         windows_to_search = [(tf, tt)]
 
     with _make_client(config.rtt.base_url, config.rtt.refresh_token) as client:

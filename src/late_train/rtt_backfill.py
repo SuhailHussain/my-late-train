@@ -95,16 +95,7 @@ def run_rtt_backfill(
             seen_uids: set[str] = set()
 
             for window_name, window in config.commute_windows.as_list():
-                h_from, m_from = map(int, window.start.split(":"))
-                h_to, m_to = map(int, window.end.split(":"))
-                time_from = datetime(
-                    target_date.year, target_date.month, target_date.day,
-                    h_from, m_from,
-                )
-                time_to = datetime(
-                    target_date.year, target_date.month, target_date.day,
-                    h_to, m_to,
-                )
+                time_from, time_to = window.datetimes(target_date)
 
                 try:
                     services = search_location(

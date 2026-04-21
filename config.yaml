@@ -13,8 +13,6 @@ commute_windows:
     start: "17:00"
     end: "19:30"
 
-poll_interval_seconds: 180  # 3 minutes — used as documentation; actual polling is driven by cron
-
 apis:
   rtt:
     base_url: "https://data.rtt.io"

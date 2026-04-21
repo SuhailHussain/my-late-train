@@ -8,11 +8,11 @@ browser, with Flask serving JSON from the /api/* endpoints.
 """
 from __future__ import annotations
 
-import sqlite3
+import logging
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, jsonify, render_template, request
 
 from late_train.config import Config, load_config
 from late_train.db import (
@@ -28,15 +28,7 @@ from late_train.db import (
 )
 
 _DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent.parent / "config.yaml"
-_STATIONS_PATH = Path(__file__).parent.parent / "stations_all.json"
-
-def _load_stations() -> list[dict]:
-    if _STATIONS_PATH.exists():
-        import json
-        return json.loads(_STATIONS_PATH.read_text())
-    return []
-
-_STATIONS = _load_stations()
+logger = logging.getLogger(__name__)
 
 
 def create_app(config: Config | None = None) -> Flask:
@@ -70,10 +62,6 @@ def create_app(config: Config | None = None) -> Flask:
             destination=destination,
             observations=[dict(r) for r in obs],
         )
-
-    @app.route("/api/stations")
-    def api_stations():
-        return jsonify(_STATIONS)
 
     @app.route("/api/departure-times")
     def api_departure_times():
@@ -134,38 +122,31 @@ def create_app(config: Config | None = None) -> Flask:
         """Quick summary stats for the header cards."""
         cfg = get_config()
         departure_time = request.args.get("departure_time") or None
-        dt_filter = "AND scheduled_departure = ?" if departure_time else ""
-        dt_param = [departure_time] if departure_time else []
         with get_connection(cfg.database_path) as conn:
-            total = conn.execute(
-                f"SELECT COUNT(*) FROM daily_observations WHERE cancelled=0 {dt_filter}",
-                dt_param,
-            ).fetchone()[0]
-            delayed = conn.execute(
-                f"SELECT COUNT(*) FROM daily_observations WHERE delay_mins > 5 AND cancelled=0 {dt_filter}",
-                dt_param,
-            ).fetchone()[0]
-            avg_delay = conn.execute(
-                f"SELECT ROUND(AVG(delay_mins),1) FROM daily_observations "
-                f"WHERE cancelled=0 AND delay_mins IS NOT NULL {dt_filter}",
-                dt_param,
-            ).fetchone()[0]
-            worst = conn.execute(
-                f"SELECT MAX(delay_mins) FROM daily_observations WHERE cancelled=0 {dt_filter}",
-                dt_param,
-            ).fetchone()[0]
-            cancels = conn.execute(
-                f"SELECT COUNT(*) FROM daily_observations WHERE cancelled=1 {dt_filter}",
-                dt_param,
-            ).fetchone()[0]
+            row = conn.execute(
+                """
+                SELECT
+                  SUM(CASE WHEN cancelled=0 THEN 1 ELSE 0 END) AS total,
+                  SUM(CASE WHEN delay_mins > 5 AND cancelled=0 THEN 1 ELSE 0 END) AS delayed,
+                  ROUND(AVG(CASE WHEN cancelled=0 AND delay_mins IS NOT NULL
+                                 THEN delay_mins END), 1) AS avg_delay,
+                  MAX(CASE WHEN cancelled=0 THEN delay_mins END) AS worst,
+                  SUM(CASE WHEN cancelled=1 THEN 1 ELSE 0 END) AS cancels
+                FROM daily_observations
+                WHERE (? IS NULL OR scheduled_departure = ?)
+                """,
+                [departure_time, departure_time],
+            ).fetchone()
 
+        total = row["total"] or 0
+        delayed = row["delayed"] or 0
         pct_on_time = round(100 * (1 - delayed / total), 1) if total else None
         return jsonify({
             "total_journeys": total,
             "pct_on_time": pct_on_time,
-            "avg_delay_mins": avg_delay,
-            "worst_delay_mins": worst,
-            "total_cancellations": cancels,
+            "avg_delay_mins": row["avg_delay"],
+            "worst_delay_mins": row["worst"],
+            "total_cancellations": row["cancels"] or 0,
         })
 
     @app.route("/results")
@@ -185,9 +166,7 @@ def create_app(config: Config | None = None) -> Flask:
     @app.route("/api/trains")
     def api_trains():
         """Return actual trains for a route around a given time (from RTT)."""
-        import logging as _logging
         from late_train.rtt import _make_client as rtt_client, search_location, get_service_detail, _iso_to_hhmm
-        _log = _logging.getLogger(__name__)
 
         cfg = get_config()
         origin = request.args.get("from", "").upper()
@@ -219,7 +198,7 @@ def create_app(config: Config | None = None) -> Flask:
         try:
             with rtt_client(cfg.rtt.base_url, cfg.rtt.refresh_token) as client:
                 services = search_location(client, origin, destination, time_from, time_to)
-                _log.info("RTT returned %d services for %s→%s on %s", len(services), origin, destination, ref)
+                logger.info("RTT returned %d services for %s→%s on %s", len(services), origin, destination, ref)
 
                 seen: set[str] = set()
                 trains_list = []
@@ -258,7 +237,7 @@ def create_app(config: Config | None = None) -> Flask:
                     })
 
         except Exception as exc:
-            _log.warning("RTT trains lookup failed: %s", exc)
+            logger.warning("RTT trains lookup failed: %s", exc)
             return jsonify({"error": str(exc), "trains": []})
 
         trains_list.sort(key=lambda x: x["departure"])
@@ -267,9 +246,6 @@ def create_app(config: Config | None = None) -> Flask:
     @app.route("/api/performance")
     def api_performance():
         """Return historical performance for a specific route + departure time from local DB."""
-        import logging as _logging
-        _log = _logging.getLogger(__name__)
-
         cfg = get_config()
         origin = request.args.get("from", "").upper()
         destination = request.args.get("to", "").upper()
@@ -287,7 +263,7 @@ def create_app(config: Config | None = None) -> Flask:
         except (ValueError, IndexError):
             return jsonify({"error": "Invalid departure time"}), 400
 
-        _log.info(
+        logger.info(
             "DB performance query: %s→%s dep=%s days=%s months=%s",
             origin, destination, departure, days, months,
         )

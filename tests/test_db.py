@@ -1,10 +1,10 @@
 """Tests for database schema, upserts, and query helpers."""
 import sqlite3
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
+from helpers import _now, _obs
 from late_train.db import (
     init_db,
     get_connection,
@@ -27,30 +27,6 @@ def db_path(tmp_path) -> Path:
     path = tmp_path / "test.db"
     init_db(path)
     return path
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _obs(service_uid="W12345", run_date="2026-03-10", source="rtt", delay=5, cancelled=0):
-    return {
-        "service_uid": service_uid,
-        "run_date": run_date,
-        "scheduled_departure": "07:45",
-        "actual_departure": "07:50",
-        "scheduled_arrival": "09:00",
-        "actual_arrival": "09:05",
-        "delay_mins": delay,
-        "platform": "1",
-        "platform_changed": 0,
-        "cancelled": cancelled,
-        "cancel_reason_code": None,
-        "cancel_reason_text": None,
-        "is_actual": 1,
-        "source": source,
-        "captured_at": _now(),
-    }
 
 
 def test_init_db_creates_tables(db_path):
