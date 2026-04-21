@@ -86,6 +86,28 @@ CREATE TABLE IF NOT EXISTS delay_codes (
     responsible_type TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS hsp_on_demand_cache (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    origin              TEXT NOT NULL,
+    destination         TEXT NOT NULL,
+    from_time           TEXT NOT NULL,       -- HHMM  (departure − 10 min)
+    to_time             TEXT NOT NULL,       -- HHMM  (departure + 10 min)
+    days                TEXT NOT NULL DEFAULT 'WEEKDAY',
+    total_services      INTEGER,
+    on_time_count       INTEGER,
+    late_1_5_count      INTEGER,
+    late_5_10_count     INTEGER,
+    late_10_15_count    INTEGER,
+    late_15_20_count    INTEGER,
+    late_20_30_count    INTEGER,
+    late_30_plus_count  INTEGER,
+    cancel_count        INTEGER,
+    period_start        TEXT,
+    period_end          TEXT,
+    retrieved_at        TEXT NOT NULL,
+    UNIQUE(origin, destination, from_time, to_time, days)
+);
+
 CREATE INDEX IF NOT EXISTS idx_obs_date   ON daily_observations(run_date);
 CREATE INDEX IF NOT EXISTS idx_obs_uid    ON daily_observations(service_uid);
 CREATE INDEX IF NOT EXISTS idx_attr_date  ON delay_attributions(run_date);
@@ -409,4 +431,84 @@ def query_performance_from_db(
         "pct_late_30_plus": pct(row["late_30_plus_count"]),
         "pct_cancelled":    pct(row["cancel_count"]),
         "avg_late_mins":    row["avg_late_mins"],
+        "source":           "rtt",
     }
+
+
+def buckets_to_performance(buckets: dict, from_date: str, to_date: str) -> dict:
+    """Convert HSP aggregate bucket counts to the /api/performance response shape."""
+    total = buckets.get("total_services") or 0
+    if total == 0:
+        return {"total": 0}
+
+    def pct(n):
+        return round(100 * (n or 0) / total, 1)
+
+    # Estimate avg delay from bucket midpoints (HSP doesn't provide raw times)
+    late_buckets = [
+        (buckets.get("late_1_5_count") or 0,   2.5),
+        (buckets.get("late_5_10_count") or 0,   7.5),
+        (buckets.get("late_10_15_count") or 0, 12.5),
+        (buckets.get("late_15_20_count") or 0, 17.5),
+        (buckets.get("late_20_30_count") or 0, 25.0),
+        (buckets.get("late_30_plus_count") or 0, 35.0),
+    ]
+    late_total = sum(c for c, _ in late_buckets)
+    avg_late_mins = (
+        round(sum(c * m for c, m in late_buckets) / late_total, 1)
+        if late_total else None
+    )
+
+    return {
+        "total":            total,
+        "from_date":        from_date,
+        "to_date":          to_date,
+        "pct_on_time":      pct(buckets.get("on_time_count")),
+        "pct_late_1_5":     pct(buckets.get("late_1_5_count")),
+        "pct_late_5_10":    pct(buckets.get("late_5_10_count")),
+        "pct_late_10_15":   pct(buckets.get("late_10_15_count")),
+        "pct_late_15_20":   pct(buckets.get("late_15_20_count")),
+        "pct_late_20_30":   pct(buckets.get("late_20_30_count")),
+        "pct_late_30_plus": pct(buckets.get("late_30_plus_count")),
+        "pct_cancelled":    pct(buckets.get("cancel_count")),
+        "avg_late_mins":    avg_late_mins,
+        "source":           "hsp",
+    }
+
+
+def upsert_hsp_on_demand_cache(conn: sqlite3.Connection, row: dict) -> None:
+    conn.execute(
+        """INSERT OR REPLACE INTO hsp_on_demand_cache
+           (origin, destination, from_time, to_time, days,
+            total_services, on_time_count, late_1_5_count, late_5_10_count,
+            late_10_15_count, late_15_20_count, late_20_30_count, late_30_plus_count,
+            cancel_count, period_start, period_end, retrieved_at)
+           VALUES
+           (:origin, :destination, :from_time, :to_time, :days,
+            :total_services, :on_time_count, :late_1_5_count, :late_5_10_count,
+            :late_10_15_count, :late_15_20_count, :late_20_30_count, :late_30_plus_count,
+            :cancel_count, :period_start, :period_end, :retrieved_at)""",
+        row,
+    )
+
+
+def query_hsp_on_demand_cache(
+    conn: sqlite3.Connection,
+    origin: str,
+    destination: str,
+    from_time: str,
+    to_time: str,
+    days: str,
+    max_age_days: int = 7,
+) -> dict | None:
+    """Return a performance dict from cache if a fresh row exists, else None."""
+    row = conn.execute(
+        """SELECT * FROM hsp_on_demand_cache
+           WHERE origin = ? AND destination = ?
+             AND from_time = ? AND to_time = ? AND days = ?
+             AND retrieved_at > datetime('now', ? || ' days')""",
+        (origin, destination, from_time, to_time, days, f"-{max_age_days}"),
+    ).fetchone()
+    if not row or not row["total_services"]:
+        return None
+    return buckets_to_performance(dict(row), row["period_start"], row["period_end"])

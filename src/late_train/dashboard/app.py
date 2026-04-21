@@ -25,6 +25,9 @@ from late_train.db import (
     query_delay_reasons,
     query_hsp_summary,
     query_performance_from_db,
+    query_hsp_on_demand_cache,
+    upsert_hsp_on_demand_cache,
+    buckets_to_performance,
 )
 
 _DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent.parent / "config.yaml"
@@ -245,42 +248,79 @@ def create_app(config: Config | None = None) -> Flask:
 
     @app.route("/api/performance")
     def api_performance():
-        """Return historical performance for a specific route + departure time from local DB."""
+        """Return historical performance for a route + departure time.
+
+        Tier 1: local RTT daily_observations (most detail, configured route only)
+        Tier 2: HSP on-demand cache (any route, refreshed weekly)
+        Tier 3: live HSP API call → cached → returned
+        """
+        from datetime import timedelta
+        from late_train.hsp import _make_client as _make_hsp_client, get_service_metrics
+
         cfg = get_config()
         origin = request.args.get("from", "").upper()
         destination = request.args.get("to", "").upper()
         departure = request.args.get("departure", "")  # HHMM
-        days = request.args.get("days", "WEEKDAY")
+        days = request.args.get("days", "WEEKDAY").upper()
         months = min(int(request.args.get("months", 6)), 24)
 
         if not origin or not destination or not departure:
             return jsonify({"error": "from, to and departure are required"}), 400
 
         departure = departure.replace(":", "")
-
         try:
             int(departure[:2]), int(departure[2:])
         except (ValueError, IndexError):
             return jsonify({"error": "Invalid departure time"}), 400
 
-        logger.info(
-            "DB performance query: %s→%s dep=%s days=%s months=%s",
-            origin, destination, departure, days, months,
-        )
+        # Narrow ±10-min window used as the HSP query + cache key
+        dep_mins = int(departure[:2]) * 60 + int(departure[2:])
+        def _fmt(m): return f"{max(0, m) // 60:02d}{max(0, m) % 60:02d}"
+        hsp_from = _fmt(dep_mins - 10)
+        hsp_to   = _fmt(min(dep_mins + 10, 23 * 60 + 59))
 
+        # --- Tier 1: RTT observations ---
         with get_connection(cfg.database_path) as conn:
             result = query_performance_from_db(conn, origin, destination, departure, days, months)
+        if result["total"] > 0:
+            logger.info("Performance: RTT hit for %s→%s %s", origin, destination, departure)
+            return jsonify(result)
 
-        if result["total"] == 0:
-            return jsonify({
-                "total": 0,
-                "error": (
-                    "No capture data yet for this service. "
-                    "Run rtt-backfill to seed history, or data builds up automatically "
-                    "as your commute is tracked."
-                ),
+        # --- Tier 2: HSP cache ---
+        with get_connection(cfg.database_path) as conn:
+            cached = query_hsp_on_demand_cache(conn, origin, destination, hsp_from, hsp_to, days)
+        if cached:
+            logger.info("Performance: HSP cache hit for %s→%s %s", origin, destination, departure)
+            return jsonify(cached)
+
+        # --- Tier 3: Live HSP fetch ---
+        logger.info("Performance: HSP live fetch for %s→%s dep=%s days=%s", origin, destination, departure, days)
+        period_start = (date.today() - timedelta(days=180)).isoformat()
+        period_end   = date.today().isoformat()
+        try:
+            with _make_hsp_client(cfg.hsp.base_url, cfg.hsp.api_key) as hsp_client:
+                buckets, _ = get_service_metrics(
+                    hsp_client, origin, destination,
+                    hsp_from, hsp_to,
+                    period_start, period_end,
+                    days,
+                )
+        except Exception as exc:
+            logger.warning("HSP live fetch failed for %s→%s: %s", origin, destination, exc)
+            return jsonify({"total": 0, "error": f"Could not fetch data from National Rail: {exc}"}), 200
+
+        with get_connection(cfg.database_path) as conn:
+            upsert_hsp_on_demand_cache(conn, {
+                "origin": origin, "destination": destination,
+                "from_time": hsp_from, "to_time": hsp_to, "days": days,
+                **buckets,
+                "period_start": period_start, "period_end": period_end,
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
             })
 
+        result = buckets_to_performance(buckets, period_start, period_end)
+        if result["total"] == 0:
+            return jsonify({"total": 0, "error": "No data found for this route and departure time."})
         return jsonify(result)
 
     return app

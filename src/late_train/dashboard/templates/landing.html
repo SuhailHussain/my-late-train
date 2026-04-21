@@ -380,7 +380,7 @@
           <path d="M100 50.59C100 78.2 77.61 100.59 50 100.59S0 78.2 0 50.59 22.39.59 50 .59s50 22.4 50 50Z" fill="currentColor"/>
           <path d="M93.97 39.04c2.43-.64 3.9-3.16 3.03-5.52A50 50 0 0 0 5.9 25.3c-1.22 2.22-.3 4.97 2.04 5.87l1.8.69c2.34.9 5.05-.05 6.26-2.27a37.5 37.5 0 0 1 67.93 6.56c.68 2.34 3.13 3.63 5.47 2.97l.58-.16Z" fill="currentFill"/>
         </svg>
-        <p class="text-sm text-gray-500">Loading performance data…</p>
+        <p class="text-sm text-gray-500">Loading performance data… <span class="text-gray-400">(first lookup may take a few seconds)</span></p>
       </div>
 
       <!-- No trains — Flowbite warning alert -->
@@ -484,8 +484,8 @@
           <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
         </svg>
         <div>
-          <span class="font-semibold">No capture data yet for this service</span>
-          <p class="mt-1 text-yellow-700">Data builds up automatically as your commute is tracked. Run <code class="bg-yellow-100 px-1 py-0.5 rounded text-xs font-mono">rtt-backfill</code> to seed history immediately.</p>
+          <span class="font-semibold">No data found for this service</span>
+          <p class="mt-1 text-yellow-700">No performance data is available for this route and departure time from National Rail or local captures.</p>
         </div>
       </div>
 
@@ -792,8 +792,9 @@ function fetchPerformance(from, to, departure, days) {
       });
 
       const fmtDate = d => new Date(d).toLocaleDateString('en-GB', {month:'short', year:'numeric'});
+      const sourceLabel = data.source === 'hsp' ? 'National Rail HSP' : 'RTT captures';
       document.getElementById('footerNote').textContent =
-        `Based on ${data.total.toLocaleString()} journeys · ${fmtDate(data.from_date)} – ${fmtDate(data.to_date)} · Source: RTT captures`;
+        `Based on ${data.total.toLocaleString()} journeys · ${fmtDate(data.from_date)} – ${fmtDate(data.to_date)} · Source: ${sourceLabel}`;
     })
     .catch(err => {
       document.getElementById('trainLoadingMore').classList.add('hidden');
