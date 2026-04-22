@@ -1,6 +1,6 @@
 [Unit]
 Description=My Late Train Dashboard
-Documentation=https://github.com/your-username/my-late-train
+Documentation=https://github.com/SuhailHussain/my-late-train
 After=network.target
 
 [Service]
@@ -11,6 +11,7 @@ WorkingDirectory=/opt/my-late-train
 ExecStart=/opt/my-late-train/.venv/bin/gunicorn \
     --workers 2 \
     --bind 127.0.0.1:8000 \
+    --timeout 120 \
     --access-logfile /opt/my-late-train/data/logs/access.log \
     --error-logfile /opt/my-late-train/data/logs/gunicorn.log \
     late_train.dashboard.app:app
