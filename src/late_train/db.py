@@ -459,18 +459,23 @@ def buckets_to_performance(buckets: dict, from_date: str, to_date: str) -> dict:
         if late_total else None
     )
 
+    on_time   = buckets.get("on_time_count") or 0
+    cancelled = buckets.get("cancel_count") or 0
+    pct_late  = pct(total - on_time - cancelled)
+
     return {
         "total":            total,
         "from_date":        from_date,
         "to_date":          to_date,
-        "pct_on_time":      pct(buckets.get("on_time_count")),
+        "pct_on_time":      pct(on_time),
+        "pct_late":         pct_late,
         "pct_late_1_5":     pct(buckets.get("late_1_5_count")),
         "pct_late_5_10":    pct(buckets.get("late_5_10_count")),
         "pct_late_10_15":   pct(buckets.get("late_10_15_count")),
         "pct_late_15_20":   pct(buckets.get("late_15_20_count")),
         "pct_late_20_30":   pct(buckets.get("late_20_30_count")),
         "pct_late_30_plus": pct(buckets.get("late_30_plus_count")),
-        "pct_cancelled":    pct(buckets.get("cancel_count")),
+        "pct_cancelled":    pct(cancelled),
         "avg_late_mins":    avg_late_mins,
         "source":           "hsp",
     }

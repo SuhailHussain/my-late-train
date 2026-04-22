@@ -746,16 +746,25 @@ function fetchPerformance(from, to, departure, days) {
       }
 
       document.getElementById('cardOnTime').textContent    = data.pct_on_time   !== null ? data.pct_on_time   + '%' : '—';
-      document.getElementById('cardAvgLate').textContent   = data.avg_late_mins !== null ? data.avg_late_mins + ' min' : '—';
+      document.getElementById('cardAvgLate').textContent   = data.avg_late_mins !== null ? data.avg_late_mins + ' min' : 'N/A';
       document.getElementById('cardCancelled').textContent = data.pct_cancelled !== null ? data.pct_cancelled + '%' : '—';
 
-      const labels = ['On time','1–5 min','5–10 min','10–15 min','15–20 min','20–30 min','30+ min','Cancelled'];
-      const values = [
-        data.pct_on_time, data.pct_late_1_5, data.pct_late_5_10,
-        data.pct_late_10_15, data.pct_late_15_20, data.pct_late_20_30,
-        data.pct_late_30_plus, data.pct_cancelled,
-      ];
-      const colours = ['#16A34A','#4ADE80','#FCD34D','#FB923C','#F87171','#EF4444','#991B1B','#6D28D9'];
+      const hasBreakdown = (data.pct_late_1_5 || 0) + (data.pct_late_5_10 || 0) +
+        (data.pct_late_10_15 || 0) + (data.pct_late_15_20 || 0) +
+        (data.pct_late_20_30 || 0) + (data.pct_late_30_plus || 0) > 0;
+
+      let labels, values, colours;
+      if (hasBreakdown) {
+        labels  = ['On time','1–5 min','5–10 min','10–15 min','15–20 min','20–30 min','30+ min','Cancelled'];
+        values  = [data.pct_on_time, data.pct_late_1_5, data.pct_late_5_10,
+                   data.pct_late_10_15, data.pct_late_15_20, data.pct_late_20_30,
+                   data.pct_late_30_plus, data.pct_cancelled];
+        colours = ['#16A34A','#4ADE80','#FCD34D','#FB923C','#F87171','#EF4444','#991B1B','#6D28D9'];
+      } else {
+        labels  = ['On time','Late','Cancelled'];
+        values  = [data.pct_on_time, data.pct_late || 0, data.pct_cancelled || 0];
+        colours = ['#16A34A','#EF4444','#6D28D9'];
+      }
 
       if (delayChartInstance) delayChartInstance.destroy();
       delayChartInstance = new Chart(document.getElementById('delayChart'), {

@@ -89,11 +89,11 @@ def _parse_tolerance_buckets(services: list[dict]) -> dict:
     }
 
     for svc in services:
-        metrics = svc.get("metrics") or []
+        metrics = svc.get("Metrics") or []
         for m in metrics:
-            tol = m.get("tolerance_value", 0)
-            num_on_time = m.get("num_on_time", 0)
-            num_not = m.get("num_not_on_time", 0)
+            tol = int(m.get("tolerance_value", 0))
+            num_on_time = int(m.get("num_tolerance", 0))
+            num_not = int(m.get("num_not_tolerance", 0))
             total = num_on_time + num_not
 
             if tol == 0:
