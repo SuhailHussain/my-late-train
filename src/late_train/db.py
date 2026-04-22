@@ -418,11 +418,16 @@ def query_performance_from_db(
     def pct(n):
         return round(100 * (n or 0) / total, 1) if total else 0
 
+    late_count = sum(row[k] or 0 for k in (
+        "late_1_5_count", "late_5_10_count", "late_10_15_count",
+        "late_15_20_count", "late_20_30_count", "late_30_plus_count",
+    ))
     return {
         "total": total,
         "from_date": row["from_date"],
         "to_date": row["to_date"],
         "pct_on_time":      pct(row["on_time_count"]),
+        "pct_late":         pct(late_count),
         "pct_late_1_5":     pct(row["late_1_5_count"]),
         "pct_late_5_10":    pct(row["late_5_10_count"]),
         "pct_late_10_15":   pct(row["late_10_15_count"]),

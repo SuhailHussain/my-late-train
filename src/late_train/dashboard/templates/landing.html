@@ -263,6 +263,38 @@
     /* ── Flowbite spinner ───────────────────────────────────── */
     @keyframes fb-spin { to { transform: rotate(360deg); } }
     .fb-spinner { animation: fb-spin 0.75s linear infinite; }
+
+    /* ── Filter pills ────────────────────────────────────────── */
+    .train-pill {
+      padding: 0.375rem 0.875rem;
+      border-radius: 9999px;
+      border: 1px solid #E5E7EB;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #374151;
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .train-pill.active { background: #1F2937; color: white; border-color: #1F2937; }
+    .train-pill:hover:not(.active) { border-color: #9CA3AF; background: #F9FAFB; }
+
+    .period-pill {
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6B7280;
+      background: transparent;
+      border: 1px solid #E5E7EB;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .period-pill.active { background: #F3F4F6; color: #111827; border-color: #9CA3AF; }
+    .period-pill:hover:not(.active) { border-color: #9CA3AF; }
   </style>
 </head>
 <body class="min-h-screen">
@@ -410,6 +442,15 @@
         </button>
       </div>
 
+      <!-- Train time + period filters -->
+      <div class="space-y-2.5">
+        <div id="trainPills" class="flex flex-wrap gap-2"></div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Period</span>
+          <div id="periodPills" class="flex flex-wrap gap-1.5"></div>
+        </div>
+      </div>
+
       <!-- KPI stat cards — Flowbite pattern with icon -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
@@ -430,14 +471,14 @@
           </div>
         </div>
 
-        <!-- Avg delay -->
+        <!-- Late -->
         <div class="kpi-card">
           <div class="kpi-card-bar" style="background: var(--color-avg-late);"></div>
           <div class="flex items-start justify-between">
             <div class="min-w-0">
-              <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 block mb-1.5">Avg delay</span>
-              <p id="cardAvgLate" class="tabular text-4xl font-extrabold leading-none" style="color: var(--color-avg-late); letter-spacing: -0.03em;">—</p>
-              <p class="text-xs text-gray-400 mt-2">when running late</p>
+              <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 block mb-1.5">Late</span>
+              <p id="cardLate" class="tabular text-4xl font-extrabold leading-none" style="color: var(--color-avg-late); letter-spacing: -0.03em;">—</p>
+              <p id="cardLateSubtext" class="text-xs text-gray-400 mt-2">of journeys</p>
             </div>
             <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ml-3" style="background: #FFFBEB;">
               <svg class="w-5 h-5" style="color: var(--color-avg-late);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
@@ -473,7 +514,7 @@
             <h3 class="text-sm font-semibold text-gray-900">Delay distribution</h3>
             <p class="text-xs text-gray-400 mt-0.5">% of journeys by lateness bucket</p>
           </div>
-          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Last 6 months</span>
+          <span id="chartPeriodLabel" class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Last 6 months</span>
         </div>
         <canvas id="delayChart" height="160"></canvas>
       </div>
@@ -511,7 +552,17 @@
 let stations = [];
 let currentFromCrs = '', currentToCrs = '', currentFromName = '', currentToName = '';
 let currentDeparture = '';
+let currentTrains = [];
+let currentMonths = 6;
 let delayChartInstance = null;
+
+const PERIOD_OPTIONS = [
+  {label: '1M',  months: 1},
+  {label: '3M',  months: 3},
+  {label: '6M',  months: 6},
+  {label: '1Y',  months: 12},
+];
+const PERIOD_LABELS = {1: 'last month', 3: 'last 3 months', 6: 'last 6 months', 12: 'last year'};
 
 // ── Time dropdown ──
 const timeSelect = document.getElementById('timeSelect');
@@ -690,6 +741,7 @@ function runSearch() {
 }
 
 function renderTrainCards(trains, days) {
+  currentTrains = trains;
   document.getElementById('trainCards').innerHTML = trains.map(t => {
     const dep = t.departure.length === 4
       ? t.departure.slice(0,2) + ':' + t.departure.slice(2)
@@ -702,6 +754,36 @@ function renderTrainCards(trains, days) {
   }).join('');
 }
 
+function renderTrainPills() {
+  document.getElementById('trainPills').innerHTML = currentTrains.map(t => {
+    const dep = t.departure.slice(0,2) + ':' + t.departure.slice(2);
+    const active = t.departure === currentDeparture;
+    return `<button onclick="switchTrain('${t.departure}')" class="train-pill${active ? ' active' : ''}">${dep}</button>`;
+  }).join('');
+}
+
+function renderPeriodPills() {
+  document.getElementById('periodPills').innerHTML = PERIOD_OPTIONS.map(p =>
+    `<button onclick="setPeriod(${p.months})" class="period-pill${p.months === currentMonths ? ' active' : ''}">${p.label}</button>`
+  ).join('');
+}
+
+function switchTrain(departure) {
+  currentDeparture = departure;
+  renderTrainPills();
+  const days = document.querySelector('input[name="days"]:checked').value;
+  document.getElementById('trainLoadingMore').classList.remove('hidden');
+  showState('stateResults');
+  fetchPerformance(currentFromCrs, currentToCrs, departure, days, currentMonths);
+}
+
+function setPeriod(months) {
+  currentMonths = months;
+  renderPeriodPills();
+  const days = document.querySelector('input[name="days"]:checked').value;
+  fetchPerformance(currentFromCrs, currentToCrs, currentDeparture, days, currentMonths);
+}
+
 function selectTrain(departure, days) {
   currentDeparture = departure;
   document.querySelectorAll('#trainCards .train-card').forEach(b => b.classList.remove('selected'));
@@ -711,12 +793,22 @@ function selectTrain(departure, days) {
       b.classList.add('selected');
   });
   document.getElementById('trainLoadingMore').classList.remove('hidden');
-  fetchPerformance(currentFromCrs, currentToCrs, departure, days);
+  fetchPerformance(currentFromCrs, currentToCrs, departure, days, currentMonths);
 }
 
+// Radio button change → re-fetch when results are showing
+document.querySelectorAll('input[name="days"]').forEach(r => {
+  r.addEventListener('change', () => {
+    if (!document.getElementById('stateResults').classList.contains('hidden') && currentDeparture) {
+      fetchPerformance(currentFromCrs, currentToCrs, currentDeparture, r.value, currentMonths);
+    }
+  });
+});
+
 // ── Performance ──
-function fetchPerformance(from, to, departure, days) {
-  fetch(`/api/performance?from=${from}&to=${to}&departure=${departure}&days=${days}`)
+function fetchPerformance(from, to, departure, days, months) {
+  months = months || currentMonths;
+  fetch(`/api/performance?from=${from}&to=${to}&departure=${departure}&days=${days}&months=${months}`)
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(data => {
       document.getElementById('trainLoadingMore').classList.add('hidden');
@@ -724,16 +816,23 @@ function fetchPerformance(from, to, departure, days) {
       document.getElementById('noDataAlert').classList.add('hidden');
       document.getElementById('errorAlert').classList.add('hidden');
 
+      renderTrainPills();
+      renderPeriodPills();
+
       const depLabel  = departure.slice(0,2) + ':' + departure.slice(2);
       const daysLabel = {WEEKDAY:'Weekdays', SATURDAY:'Saturdays', SUNDAY:'Sundays'}[days] || days;
+      const periodLabel = PERIOD_LABELS[months] || `last ${months} months`;
       document.getElementById('resultsTitle').textContent    = `${currentFromName} → ${currentToName}`;
-      document.getElementById('resultsSubtitle').textContent = `${depLabel} · ${daysLabel} · last 6 months`;
+      document.getElementById('resultsSubtitle').textContent = `${depLabel} · ${daysLabel} · ${periodLabel}`;
+      document.getElementById('chartPeriodLabel').textContent =
+        periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1);
 
       if (data.error && data.total === 0) {
         document.getElementById('noDataAlert').classList.remove('hidden');
-        ['cardOnTime','cardAvgLate','cardCancelled'].forEach(id =>
+        ['cardOnTime','cardLate','cardCancelled'].forEach(id =>
           document.getElementById(id).textContent = '—'
         );
+        document.getElementById('cardLateSubtext').textContent = 'of journeys';
         document.getElementById('footerNote').textContent = '';
         if (delayChartInstance) { delayChartInstance.destroy(); delayChartInstance = null; }
         return;
@@ -745,8 +844,12 @@ function fetchPerformance(from, to, departure, days) {
         return;
       }
 
+      const pctLate = data.pct_late !== undefined ? data.pct_late
+        : Math.max(0, 100 - (data.pct_on_time || 0) - (data.pct_cancelled || 0));
       document.getElementById('cardOnTime').textContent    = data.pct_on_time   !== null ? data.pct_on_time   + '%' : '—';
-      document.getElementById('cardAvgLate').textContent   = data.avg_late_mins !== null ? data.avg_late_mins + ' min' : 'N/A';
+      document.getElementById('cardLate').textContent      = pctLate + '%';
+      document.getElementById('cardLateSubtext').textContent =
+        data.avg_late_mins ? `avg ${data.avg_late_mins} min when late` : 'of journeys';
       document.getElementById('cardCancelled').textContent = data.pct_cancelled !== null ? data.pct_cancelled + '%' : '—';
 
       const hasBreakdown = (data.pct_late_1_5 || 0) + (data.pct_late_5_10 || 0) +
