@@ -9,6 +9,8 @@ browser, with Flask serving JSON from the /api/* endpoints.
 from __future__ import annotations
 
 import logging
+from calendar import monthrange
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -27,6 +29,7 @@ from late_train.db import (
     query_performance_from_db,
     query_performance_trend,
     query_hsp_on_demand_cache,
+    query_hsp_month_cache,
     upsert_hsp_on_demand_cache,
     buckets_to_performance,
 )
@@ -326,7 +329,9 @@ def create_app(config: Config | None = None) -> Flask:
 
     @app.route("/api/performance/trend")
     def api_performance_trend():
-        cfg = get_config()
+        from late_train.hsp import _make_client as _make_hsp_client, get_service_metrics
+
+        cfg         = get_config()
         origin      = request.args.get("from", "").upper()
         destination = request.args.get("to", "").upper()
         departure   = request.args.get("departure", "").replace(":", "")
@@ -336,8 +341,94 @@ def create_app(config: Config | None = None) -> Flask:
         if not origin or not destination or not departure:
             return jsonify([])
 
+        # Tier 1: RTT observations give per-day data, group by month
         with get_connection(cfg.database_path) as conn:
             trend = query_performance_trend(conn, origin, destination, departure, days, months)
+        if trend:
+            return jsonify(trend)
+
+        # Tier 2: HSP — query each calendar month in parallel, cache each result
+        dep_mins = int(departure[:2]) * 60 + int(departure[2:])
+        def _fmt(m): return f"{max(0, m) // 60:02d}{max(0, m) % 60:02d}"
+        hsp_from = _fmt(dep_mins - 10)
+        hsp_to   = _fmt(min(dep_mins + 10, 23 * 60 + 59))
+
+        today = date.today()
+        month_windows = []
+        for i in range(months, 0, -1):
+            yr, mo = today.year, today.month - i
+            while mo <= 0:
+                mo += 12; yr -= 1
+            last_day = monthrange(yr, mo)[1]
+            month_windows.append((
+                date(yr, mo, 1).isoformat(),
+                date(yr, mo, last_day).isoformat(),
+            ))
+        # include current partial month
+        month_windows.append((date(today.year, today.month, 1).isoformat(), today.isoformat()))
+
+        # Check which months are already cached
+        cached_buckets: dict[str, dict] = {}
+        missing: list[tuple[str, str]] = []
+        with get_connection(cfg.database_path) as conn:
+            for ps, pe in month_windows:
+                row = query_hsp_month_cache(conn, origin, destination, hsp_from, hsp_to, days, ps)
+                if row:
+                    cached_buckets[ps] = row
+                else:
+                    missing.append((ps, pe))
+
+        # Fetch missing months in parallel
+        def fetch_one(ps: str, pe: str):
+            try:
+                with _make_hsp_client(cfg.hsp.base_url, cfg.hsp.api_key) as client:
+                    buckets, _ = get_service_metrics(
+                        client, origin, destination, hsp_from, hsp_to, ps, pe, days,
+                    )
+                return ps, pe, buckets
+            except Exception as exc:
+                logger.warning("HSP trend fetch failed %s→%s %s: %s", origin, destination, ps, exc)
+                return ps, pe, None
+
+        fetched: dict[str, dict] = {}
+        if missing:
+            logger.info("HSP trend: fetching %d months in parallel for %s→%s", len(missing), origin, destination)
+            with ThreadPoolExecutor(max_workers=6) as pool:
+                futures = {pool.submit(fetch_one, ps, pe): (ps, pe) for ps, pe in missing}
+                for future in as_completed(futures):
+                    ps, pe, buckets = future.result()
+                    if buckets and buckets.get("total_services", 0) > 0:
+                        fetched[ps] = buckets
+                        with get_connection(cfg.database_path) as conn:
+                            upsert_hsp_on_demand_cache(conn, {
+                                "origin": origin, "destination": destination,
+                                "from_time": hsp_from, "to_time": hsp_to, "days": days,
+                                **buckets,
+                                "period_start": ps, "period_end": pe,
+                                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                            })
+
+        # Build trend list in chronological order
+        all_buckets = {**cached_buckets, **fetched}
+        trend = []
+        for ps, _ in month_windows:
+            row = all_buckets.get(ps)
+            if not row:
+                continue
+            total = row.get("total_services") or 0
+            if total == 0:
+                continue
+            def pct(n): return round(100 * (n or 0) / total, 1)
+            on_time   = row.get("on_time_count") or 0
+            cancelled = row.get("cancel_count") or 0
+            trend.append({
+                "month":       ps[:7],
+                "on_time_pct": pct(on_time),
+                "late_pct":    pct(total - on_time - cancelled),
+                "cancel_pct":  pct(cancelled),
+                "total":       total,
+            })
+
         return jsonify(trend)
 
     return app

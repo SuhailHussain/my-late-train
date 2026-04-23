@@ -582,3 +582,27 @@ def query_hsp_on_demand_cache(
     if not row or not row["total_services"]:
         return None
     return buckets_to_performance(dict(row), row["period_start"], row["period_end"])
+
+
+def query_hsp_month_cache(
+    conn: sqlite3.Connection,
+    origin: str,
+    destination: str,
+    from_time: str,
+    to_time: str,
+    days: str,
+    period_start: str,
+    max_age_days: int = 30,
+) -> dict | None:
+    """Return raw cache row for an exact period_start, or None if missing/stale."""
+    row = conn.execute(
+        """SELECT * FROM hsp_on_demand_cache
+           WHERE origin = ? AND destination = ?
+             AND from_time = ? AND to_time = ? AND days = ?
+             AND period_start = ?
+             AND retrieved_at > datetime('now', ? || ' days')""",
+        (origin, destination, from_time, to_time, days, period_start, f"-{max_age_days}"),
+    ).fetchone()
+    if not row or not row["total_services"]:
+        return None
+    return dict(row)
