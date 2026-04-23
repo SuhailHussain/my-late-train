@@ -720,6 +720,17 @@
         <canvas id="delayChart" height="160" role="img" aria-label="Delay breakdown chart"></canvas>
       </div>
 
+      <!-- Trend chart -->
+      <div id="trendCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-900">Performance over time</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Monthly on-time & late % — last 12 months</p>
+          </div>
+        </div>
+        <canvas id="trendChart" height="140" role="img" aria-label="Monthly performance trend chart"></canvas>
+      </div>
+
       <!-- No data — Flowbite warning alert -->
       <div id="noDataAlert" class="hidden flex items-start p-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 border border-yellow-200" role="alert">
         <svg class="flex-shrink-0 w-4 h-4 me-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
@@ -878,6 +889,7 @@ let currentDeparture = '';
 let currentTrains = [];
 let currentMonths = 6;
 let delayChartInstance = null;
+let trendChartInstance = null;
 
 const PERIOD_OPTIONS = [
   {label: '1M',  months: 1},
@@ -1242,6 +1254,12 @@ function fetchPerformance(from, to, departure, days, months) {
       const sourceLabel = data.source === 'hsp' ? 'National Rail HSP' : 'RTT captures';
       document.getElementById('footerNote').textContent =
         `Based on ${data.total.toLocaleString()} journeys · ${fmtDate(data.from_date)} – ${fmtDate(data.to_date)} · Source: ${sourceLabel}`;
+
+      // Fetch trend data (RTT routes only — returns [] for HSP)
+      fetch(`/api/performance/trend?from=${from}&to=${to}&departure=${departure}&days=${days}&months=12`)
+        .then(r => r.json())
+        .then(trend => renderTrendChart(trend))
+        .catch(() => document.getElementById('trendCard').classList.add('hidden'));
     })
     .catch(err => {
       document.getElementById('trainLoadingMore').classList.add('hidden');
@@ -1249,6 +1267,110 @@ function fetchPerformance(from, to, departure, days, months) {
       document.getElementById('errorAlertMsg').textContent = 'Unexpected error: ' + err.message;
       document.getElementById('errorAlert').classList.remove('hidden');
     });
+}
+
+function renderTrendChart(trend) {
+  const card = document.getElementById('trendCard');
+  if (!trend || trend.length < 2) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+
+  const fmtMonth = m => {
+    const [y, mo] = m.split('-');
+    return new Date(+y, +mo - 1, 1).toLocaleDateString('en-GB', {month:'short', year:'2-digit'});
+  };
+
+  const labels    = trend.map(d => fmtMonth(d.month));
+  const onTime    = trend.map(d => d.on_time_pct);
+  const late      = trend.map(d => d.late_pct);
+  const cancelled = trend.map(d => d.cancel_pct);
+
+  const chartOpts = {
+    backgroundColor: '#0c130c',
+    borderColor: '#1a3a1a',
+    borderWidth: 1,
+    titleColor: '#3dff3d',
+    bodyColor: '#1d7a1d',
+    titleFont: { family: "'Share Tech Mono', monospace" },
+    bodyFont:  { family: "'Share Tech Mono', monospace" },
+    callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}%` },
+  };
+
+  if (trendChartInstance) trendChartInstance.destroy();
+  trendChartInstance = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'On time',
+          data: onTime,
+          borderColor: '#3dff3d',
+          backgroundColor: 'rgba(61,255,61,0.06)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#3dff3d',
+          tension: 0.35,
+          fill: true,
+        },
+        {
+          label: 'Late',
+          data: late,
+          borderColor: '#ffb000',
+          backgroundColor: 'rgba(255,176,0,0.04)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#ffb000',
+          tension: 0.35,
+          fill: false,
+        },
+        {
+          label: 'Cancelled',
+          data: cancelled,
+          borderColor: '#ff3d3d',
+          backgroundColor: 'rgba(255,61,61,0.04)',
+          borderWidth: 1.5,
+          pointRadius: 2,
+          pointBackgroundColor: '#ff3d3d',
+          tension: 0.35,
+          fill: false,
+        },
+      ]
+    },
+    options: {
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: '#1d7a1d',
+            font: { family: "'Share Tech Mono', monospace", size: 11 },
+            boxWidth: 12,
+            padding: 16,
+          }
+        },
+        tooltip: chartOpts,
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: v => v + '%',
+            font: { family: "'Share Tech Mono', monospace", size: 11 },
+            color: '#1d7a1d',
+          },
+          grid: { color: 'rgba(61,255,61,0.07)' },
+        },
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { family: "'Share Tech Mono', monospace", size: 10 },
+            color: '#1d7a1d',
+            maxRotation: 45,
+          }
+        }
+      }
+    }
+  });
 }
 </script>
 

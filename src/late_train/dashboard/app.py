@@ -25,6 +25,7 @@ from late_train.db import (
     query_delay_reasons,
     query_hsp_summary,
     query_performance_from_db,
+    query_performance_trend,
     query_hsp_on_demand_cache,
     upsert_hsp_on_demand_cache,
     buckets_to_performance,
@@ -322,6 +323,22 @@ def create_app(config: Config | None = None) -> Flask:
         if result["total"] == 0:
             return jsonify({"total": 0, "error": "No data found for this route and departure time."})
         return jsonify(result)
+
+    @app.route("/api/performance/trend")
+    def api_performance_trend():
+        cfg = get_config()
+        origin      = request.args.get("from", "").upper()
+        destination = request.args.get("to", "").upper()
+        departure   = request.args.get("departure", "").replace(":", "")
+        days        = request.args.get("days", "WEEKDAY").upper()
+        months      = min(int(request.args.get("months", 12)), 24)
+
+        if not origin or not destination or not departure:
+            return jsonify([])
+
+        with get_connection(cfg.database_path) as conn:
+            trend = query_performance_trend(conn, origin, destination, departure, days, months)
+        return jsonify(trend)
 
     return app
 

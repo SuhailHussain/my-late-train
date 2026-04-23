@@ -486,6 +486,62 @@ def buckets_to_performance(buckets: dict, from_date: str, to_date: str) -> dict:
     }
 
 
+def query_performance_trend(
+    conn: sqlite3.Connection,
+    origin: str,
+    destination: str,
+    departure_hhmm: str,
+    days: str,
+    months: int = 12,
+) -> list[dict]:
+    """Return monthly on-time/late/cancelled percentages over the last N months.
+
+    Each element: {month, on_time_pct, late_pct, cancel_pct, total}
+    Only available for routes with RTT observations (returns [] for HSP-only).
+    """
+    dep_colon = f"{departure_hhmm[:2]}:{departure_hhmm[2:]}"
+    day_clauses = {
+        "WEEKDAY":  "CAST(strftime('%w', run_date) AS INTEGER) BETWEEN 1 AND 5",
+        "SATURDAY": "CAST(strftime('%w', run_date) AS INTEGER) = 6",
+        "SUNDAY":   "CAST(strftime('%w', run_date) AS INTEGER) = 0",
+    }
+    day_clause = day_clauses.get(days.upper(), day_clauses["WEEKDAY"])
+
+    rows = conn.execute(
+        f"""
+        SELECT
+            strftime('%Y-%m', run_date) AS month,
+            COUNT(*) AS total,
+            SUM(CASE WHEN delay_mins <= 0 AND cancelled = 0 THEN 1 ELSE 0 END) AS on_time_count,
+            SUM(CASE WHEN delay_mins > 0  AND cancelled = 0 THEN 1 ELSE 0 END) AS late_count,
+            SUM(CASE WHEN cancelled = 1                      THEN 1 ELSE 0 END) AS cancel_count
+        FROM daily_observations
+        WHERE is_actual = 1
+          AND {day_clause}
+          AND run_date >= date('now', ? || ' months')
+          AND scheduled_departure = ?
+        GROUP BY month
+        ORDER BY month
+        """,
+        (f"-{months}", dep_colon),
+    ).fetchall()
+
+    result = []
+    for r in rows:
+        total = r["total"] or 0
+        if total == 0:
+            continue
+        def pct(n): return round(100 * (n or 0) / total, 1)
+        result.append({
+            "month":         r["month"],
+            "on_time_pct":   pct(r["on_time_count"]),
+            "late_pct":      pct(r["late_count"]),
+            "cancel_pct":    pct(r["cancel_count"]),
+            "total":         total,
+        })
+    return result
+
+
 def upsert_hsp_on_demand_cache(conn: sqlite3.Connection, row: dict) -> None:
     conn.execute(
         """INSERT OR REPLACE INTO hsp_on_demand_cache
