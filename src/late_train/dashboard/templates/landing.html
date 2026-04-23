@@ -351,6 +351,26 @@
     .pip-train-lg { display: block; width: 96px; color: var(--pip-green); }
     .pip-train-sm { display: block; width: 52px; color: var(--pip-green); }
 
+    /* ── Chart tabs ─────────────────────────────────────────── */
+    .chart-tab {
+      padding: 0.2rem 0.75rem;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid var(--pip-border);
+      background: transparent;
+      color: var(--pip-dim);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .chart-tab:first-child { border-right: none; }
+    .chart-tab.active {
+      background: rgba(61,255,61,0.08);
+      color: var(--pip-green);
+      border-color: var(--pip-green);
+    }
+    .chart-tab:hover:not(.active) { color: var(--pip-green); border-color: var(--pip-dim); }
+
     /* ── Filter pills ────────────────────────────────────────── */
     .train-pill {
       padding: 0.25rem 0.75rem;
@@ -708,27 +728,25 @@
 
       </div>
 
-      <!-- Chart — Flowbite card -->
+      <!-- Chart card with distribution / trend tabs -->
       <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
-        <div class="flex items-start justify-between mb-4">
-          <div>
-            <h3 class="text-sm font-semibold text-gray-900">Delay distribution</h3>
-            <p class="text-xs text-gray-400 mt-0.5">% of journeys by lateness bucket</p>
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex gap-0">
+            <button id="tabDistribution" onclick="switchChartTab('distribution')"
+              class="chart-tab active" aria-pressed="true">Distribution</button>
+            <button id="tabTrend" onclick="switchChartTab('trend')"
+              class="chart-tab" aria-pressed="false">Over time</button>
           </div>
           <span id="chartPeriodLabel" class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Last 6 months</span>
         </div>
-        <canvas id="delayChart" height="160" role="img" aria-label="Delay breakdown chart"></canvas>
-      </div>
-
-      <!-- Trend chart -->
-      <div id="trendCard" class="hidden bg-white border border-gray-200 rounded-xl shadow-sm p-5">
-        <div class="flex items-start justify-between mb-4">
-          <div>
-            <h3 class="text-sm font-semibold text-gray-900">Performance over time</h3>
-            <p class="text-xs text-gray-400 mt-0.5">Monthly on-time & late % — last 12 months</p>
-          </div>
+        <p id="chartSubtitle" class="text-xs text-gray-400 mb-4">% of journeys by lateness bucket</p>
+        <div id="panelDistribution">
+          <canvas id="delayChart" height="160" role="img" aria-label="Delay breakdown chart"></canvas>
         </div>
-        <canvas id="trendChart" height="140" role="img" aria-label="Monthly performance trend chart"></canvas>
+        <div id="panelTrend" class="hidden">
+          <canvas id="trendChart" height="160" role="img" aria-label="Monthly performance trend chart"></canvas>
+          <p id="trendNoData" class="hidden text-xs text-center mt-4" style="color:var(--pip-dim);">Not enough monthly data yet — run a backfill to populate history.</p>
+        </div>
       </div>
 
       <!-- No data — Flowbite warning alert -->
@@ -1165,6 +1183,10 @@ function fetchPerformance(from, to, departure, days, months) {
       document.getElementById('chartPeriodLabel').textContent =
         periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1);
 
+      switchChartTab('distribution');
+      if (trendChartInstance) { trendChartInstance.destroy(); trendChartInstance = null; }
+      document.getElementById('trendNoData').classList.add('hidden');
+
       if (data.error && data.total === 0) {
         document.getElementById('noDataAlert').classList.remove('hidden');
         ['cardOnTime','cardLate','cardCancelled'].forEach(id =>
@@ -1259,7 +1281,7 @@ function fetchPerformance(from, to, departure, days, months) {
       fetch(`/api/performance/trend?from=${from}&to=${to}&departure=${departure}&days=${days}&months=12`)
         .then(r => r.json())
         .then(trend => renderTrendChart(trend))
-        .catch(() => document.getElementById('trendCard').classList.add('hidden'));
+        .catch(() => {});
     })
     .catch(err => {
       document.getElementById('trainLoadingMore').classList.add('hidden');
@@ -1269,9 +1291,24 @@ function fetchPerformance(from, to, departure, days, months) {
     });
 }
 
+function switchChartTab(tab) {
+  const isDistribution = tab === 'distribution';
+  document.getElementById('tabDistribution').classList.toggle('active', isDistribution);
+  document.getElementById('tabTrend').classList.toggle('active', !isDistribution);
+  document.getElementById('tabDistribution').setAttribute('aria-pressed', isDistribution);
+  document.getElementById('tabTrend').setAttribute('aria-pressed', !isDistribution);
+  document.getElementById('panelDistribution').classList.toggle('hidden', !isDistribution);
+  document.getElementById('panelTrend').classList.toggle('hidden', isDistribution);
+  document.getElementById('chartSubtitle').textContent = isDistribution
+    ? '% of journeys by lateness bucket'
+    : 'Monthly on-time & late % — last 12 months';
+  document.getElementById('chartPeriodLabel').style.display = isDistribution ? '' : 'none';
+}
+
 function renderTrendChart(trend) {
-  const card = document.getElementById('trendCard');
-  if (!trend || trend.length < 2) { card.classList.add('hidden'); return; }
+  const noData = document.getElementById('trendNoData');
+  if (!trend || trend.length === 0) { noData.classList.remove('hidden'); return; }
+  noData.classList.add('hidden');
   card.classList.remove('hidden');
 
   const fmtMonth = m => {
