@@ -288,14 +288,14 @@ def create_app(config: Config | None = None) -> Flask:
 
         # --- Tier 2: HSP cache ---
         with get_connection(cfg.database_path) as conn:
-            cached = query_hsp_on_demand_cache(conn, origin, destination, hsp_from, hsp_to, days)
+            cached = query_hsp_on_demand_cache(conn, origin, destination, hsp_from, hsp_to, days, months)
         if cached:
             logger.info("Performance: HSP cache hit for %s→%s %s", origin, destination, departure)
             return jsonify(cached)
 
         # --- Tier 3: Live HSP fetch ---
-        logger.info("Performance: HSP live fetch for %s→%s dep=%s days=%s", origin, destination, departure, days)
-        period_start = (date.today() - timedelta(days=180)).isoformat()
+        logger.info("Performance: HSP live fetch for %s→%s dep=%s days=%s months=%s", origin, destination, departure, days, months)
+        period_start = (date.today() - timedelta(days=30 * months)).isoformat()
         period_end   = date.today().isoformat()
         try:
             with _make_hsp_client(cfg.hsp.base_url, cfg.hsp.api_key) as hsp_client:

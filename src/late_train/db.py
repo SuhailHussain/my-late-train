@@ -509,15 +509,19 @@ def query_hsp_on_demand_cache(
     from_time: str,
     to_time: str,
     days: str,
+    months: int = 6,
     max_age_days: int = 7,
 ) -> dict | None:
-    """Return a performance dict from cache if a fresh row exists, else None."""
+    """Return a performance dict from cache if a fresh row exists for this period, else None."""
     row = conn.execute(
         """SELECT * FROM hsp_on_demand_cache
            WHERE origin = ? AND destination = ?
              AND from_time = ? AND to_time = ? AND days = ?
-             AND retrieved_at > datetime('now', ? || ' days')""",
-        (origin, destination, from_time, to_time, days, f"-{max_age_days}"),
+             AND retrieved_at > datetime('now', ? || ' days')
+             AND period_start >= date('now', ? || ' months', '-5 days')
+             AND period_start <= date('now', ? || ' months', '+5 days')""",
+        (origin, destination, from_time, to_time, days,
+         f"-{max_age_days}", f"-{months}", f"-{months}"),
     ).fetchone()
     if not row or not row["total_services"]:
         return None
