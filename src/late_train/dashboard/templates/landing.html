@@ -397,6 +397,8 @@
     <h1 class="sidebar-heading">How late is<br>my train?</h1>
     <div class="accent-rule" aria-hidden="true"></div>
 
+    <p class="text-xs mb-4" style="color:var(--pip-dim);letter-spacing:0.06em;">Enter a route and departure time to see historical punctuality stats for that service.</p>
+
     <!-- From -->
     <div class="mb-4">
       <label class="sidebar-label" for="fromInput">From</label>
@@ -462,17 +464,9 @@
   <!-- ── Main content ── -->
   <main class="flex-1 min-w-0 p-6 lg:p-10">
 
-    <!-- Empty state -->
-    <div id="stateEmpty" class="h-full flex flex-col items-center justify-center min-h-72 text-center gap-3">
-      <div class="w-14 h-14 rounded-2xl flex items-center justify-center bg-gray-100">
-        <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 1-.987-1.106v-.958"/>
-        </svg>
-      </div>
-      <div>
-        <p class="text-sm font-medium text-gray-600">Search a route to see performance data</p>
-        <p class="text-xs text-gray-400 mt-0.5">Select stations, departure time, and day type</p>
-      </div>
+    <!-- Empty state — generative noise canvas -->
+    <div id="stateEmpty" class="h-full min-h-72 relative" style="display:flex;align-items:stretch;">
+      <canvas id="noiseCanvas" style="display:block;width:100%;height:100%;min-height:72vh;image-rendering:pixelated;" aria-hidden="true"></canvas>
     </div>
 
     <!-- Loading state -->
@@ -751,6 +745,118 @@
 </div>
 
 <script>
+// ── Noise canvas ──────────────────────────────────────────────────────────────
+(function () {
+  // Smooth noise via value noise with bilinear interpolation
+  function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  // Seeded pseudo-random lattice
+  const LATTICE = 256;
+  const perm = new Uint8Array(LATTICE * 2);
+  for (let i = 0; i < LATTICE; i++) perm[i] = i;
+  for (let i = LATTICE - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [perm[i], perm[j]] = [perm[j], perm[i]];
+  }
+  for (let i = 0; i < LATTICE; i++) perm[LATTICE + i] = perm[i];
+
+  function noise2(x, y) {
+    const xi = Math.floor(x) & 255, yi = Math.floor(y) & 255;
+    const xf = x - Math.floor(x), yf = y - Math.floor(y);
+    const u = fade(xf), v = fade(yf);
+    const aa = perm[perm[xi]     + yi],     ab = perm[perm[xi]     + yi + 1];
+    const ba = perm[perm[xi + 1] + yi],     bb = perm[perm[xi + 1] + yi + 1];
+    // Use perm values as pseudo-random gradients (simple hash → float)
+    function g(h, dx, dy) { const bit = h & 3; return (bit < 2 ? dx : -dx) + (bit & 1 ? dy : -dy); }
+    return lerp(
+      lerp(g(aa, xf,   yf),   g(ba, xf-1, yf),   u),
+      lerp(g(ab, xf,   yf-1), g(bb, xf-1, yf-1), u),
+      v
+    );
+  }
+
+  // fBm — multiple octaves for cloud-like turbulence
+  function fbm(x, y, octaves) {
+    let val = 0, amp = 0.5, freq = 1, max = 0;
+    for (let i = 0; i < octaves; i++) {
+      val += noise2(x * freq, y * freq) * amp;
+      max += amp;
+      amp *= 0.5;
+      freq *= 2.1;
+    }
+    return val / max; // normalise to ~[-1, 1]
+  }
+
+  const PIXEL = 4; // render at 1/4 resolution then scale up for pixel look
+  let canvas, ctx, W, H, animId, t = 0;
+
+  function resize() {
+    W = Math.ceil(canvas.offsetWidth  / PIXEL);
+    H = Math.ceil(canvas.offsetHeight / PIXEL);
+    canvas.width  = W;
+    canvas.height = H;
+  }
+
+  function draw() {
+    if (document.getElementById('stateEmpty').classList.contains('hidden')) {
+      cancelAnimationFrame(animId);
+      animId = null;
+      return;
+    }
+    resize();
+    const imgData = ctx.createImageData(W, H);
+    const d = imgData.data;
+    const speed = 0.0003;
+    const scale = 0.12;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        // domain-warp: distort coordinates by a second fbm for extra turbulence
+        const wx = fbm(x * scale + 0.3, y * scale + 0.7, 3);
+        const wy = fbm(x * scale + 3.1, y * scale + 1.4, 3);
+        const warpStrength = 1.8;
+        const nx = x * scale + wx * warpStrength + t * 0.4;
+        const ny = y * scale + wy * warpStrength + t * 0.15;
+        let v = fbm(nx, ny, 5);          // –1 … 1
+        v = (v + 1) * 0.5;              // 0 … 1
+        v = Math.pow(v, 1.4);           // darken midtones, punch up contrast
+
+        // Map to phosphor green palette: very dark → dim green; bright → bright green
+        const bright = Math.round(v * 255);
+        // Blend between near-black (#080c08) and pip-green (#3dff3d)
+        const r = Math.round(lerp(0x08, 0x3d, v * v));
+        const g = Math.round(lerp(0x0c, 0xff, v));
+        const b = Math.round(lerp(0x08, 0x3d, v * v));
+        const alpha = Math.round(lerp(180, 255, v));
+
+        const idx = (y * W + x) * 4;
+        d[idx]   = r;
+        d[idx+1] = g;
+        d[idx+2] = b;
+        d[idx+3] = alpha;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    t += speed * 16; // ~60fps step
+    animId = requestAnimationFrame(draw);
+  }
+
+  function start() {
+    if (animId) return; // already running
+    canvas = document.getElementById('noiseCanvas');
+    if (!canvas) return;
+    ctx = canvas.getContext('2d');
+    resize();
+    draw();
+  }
+
+  // Pause when stateEmpty is hidden, restart when shown
+  const _showState = window.showState;
+  window._startNoiseCanvas = start;
+
+  document.addEventListener('DOMContentLoaded', start);
+})();
+
 let stations = [];
 let currentFromCrs = '', currentToCrs = '', currentFromName = '', currentToName = '';
 let currentDeparture = '';
@@ -891,6 +997,7 @@ function showState(id) {
   ['stateEmpty','stateLoading','stateTrains','stateResults'].forEach(s =>
     document.getElementById(s).classList.toggle('hidden', s !== id)
   );
+  if (id === 'stateEmpty') window._startNoiseCanvas && window._startNoiseCanvas();
 }
 
 // ── Search ──
