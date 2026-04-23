@@ -408,7 +408,7 @@
         <svg class="icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <div id="fromDropdown" class="sidebar-dropdown absolute z-20 left-0 right-0 mt-1 hidden max-h-52 overflow-y-auto"></div>
+        <div id="fromDropdown" role="listbox" aria-label="From station suggestions" class="sidebar-dropdown absolute z-20 left-0 right-0 mt-1 hidden max-h-52 overflow-y-auto"></div>
       </div>
     </div>
 
@@ -427,34 +427,36 @@
         <svg class="icon w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <div id="toDropdown" class="sidebar-dropdown absolute z-20 left-0 right-0 mt-1 hidden max-h-52 overflow-y-auto"></div>
+        <div id="toDropdown" role="listbox" aria-label="To station suggestions" class="sidebar-dropdown absolute z-20 left-0 right-0 mt-1 hidden max-h-52 overflow-y-auto"></div>
       </div>
     </div>
 
     <hr class="sidebar-divider">
 
-    <span class="sidebar-section-label">When do you travel?</span>
+    <fieldset class="mb-8" style="border:none;padding:0;margin:0;">
+      <legend class="sidebar-section-label" style="float:none;width:100%;margin-bottom:0.75rem;">When do you travel?</legend>
 
-    <!-- Time -->
-    <div class="mb-4">
-      <label class="sidebar-label" for="timeSelect">Departure time</label>
-      <div class="sidebar-select-wrap">
-        <select id="timeSelect" class="sidebar-input tabular"></select>
+      <!-- Time -->
+      <div class="mb-4">
+        <label class="sidebar-label" for="timeSelect">Departure time</label>
+        <div class="sidebar-select-wrap">
+          <select id="timeSelect" class="sidebar-input tabular"></select>
+        </div>
       </div>
-    </div>
 
-    <!-- Day type -->
-    <div class="mb-8 space-y-2">
-      <label class="day-radio-label">
-        <input type="radio" name="days" value="WEEKDAY" checked> Weekdays
-      </label>
-      <label class="day-radio-label">
-        <input type="radio" name="days" value="SATURDAY"> Saturdays
-      </label>
-      <label class="day-radio-label">
-        <input type="radio" name="days" value="SUNDAY"> Sundays
-      </label>
-    </div>
+      <!-- Day type -->
+      <div class="space-y-2">
+        <label class="day-radio-label">
+          <input type="radio" name="days" value="WEEKDAY" checked> Weekdays
+        </label>
+        <label class="day-radio-label">
+          <input type="radio" name="days" value="SATURDAY"> Saturdays
+        </label>
+        <label class="day-radio-label">
+          <input type="radio" name="days" value="SUNDAY"> Sundays
+        </label>
+      </div>
+    </fieldset>
 
     <p id="searchError" class="sidebar-error hidden">Please select both stations.</p>
     <button onclick="runSearch()" class="search-btn">Search</button>
@@ -712,7 +714,7 @@
           </div>
           <span id="chartPeriodLabel" class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Last 6 months</span>
         </div>
-        <canvas id="delayChart" height="160"></canvas>
+        <canvas id="delayChart" height="160" role="img" aria-label="Delay breakdown chart"></canvas>
       </div>
 
       <!-- No data — Flowbite warning alert -->
@@ -790,6 +792,7 @@
 
   const PIXEL = 4; // render at 1/4 resolution then scale up for pixel look
   let canvas, ctx, W, H, animId, t = 0;
+  let mx = 0.5, my = 0.5, mouseWarp = 0, targetMouseWarp = 0;
 
   function resize() {
     W = Math.ceil(canvas.offsetWidth  / PIXEL);
@@ -804,6 +807,7 @@
       animId = null;
       return;
     }
+    mouseWarp = lerp(mouseWarp, targetMouseWarp, 0.06);
     resize();
     const imgData = ctx.createImageData(W, H);
     const d = imgData.data;
@@ -811,23 +815,20 @@
     const scale = 0.12;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
-        // domain-warp: distort coordinates by a second fbm for extra turbulence
         const wx = fbm(x * scale + 0.3, y * scale + 0.7, 3);
         const wy = fbm(x * scale + 3.1, y * scale + 1.4, 3);
         const warpStrength = 1.8;
-        const nx = x * scale + wx * warpStrength + t * 0.4;
-        const ny = y * scale + wy * warpStrength + t * 0.15;
-        let v = fbm(nx, ny, 5);          // –1 … 1
-        v = (v + 1) * 0.5;              // 0 … 1
-        v = Math.pow(v, 1.4);           // darken midtones, punch up contrast
+        const nx = x * scale + wx * warpStrength + t * 0.4 + mx * mouseWarp * 2.5;
+        const ny = y * scale + wy * warpStrength + t * 0.15 + my * mouseWarp * 2.0;
+        let v = fbm(nx, ny, 5);
+        v = (v + 1) * 0.5;
+        v = Math.pow(v, 1.4);
 
-        // Map to phosphor green palette: very dark → dim green; bright → bright green
-        const bright = Math.round(v * 255);
-        // Blend between near-black (#080c08) and pip-green (#3dff3d)
-        const r = Math.round(lerp(0x08, 0x3d, v * v));
-        const g = Math.round(lerp(0x0c, 0xff, v));
-        const b = Math.round(lerp(0x08, 0x3d, v * v));
-        const alpha = Math.round(lerp(180, 255, v));
+        // Faint, barely-green dark texture
+        const r = Math.round(lerp(0x08, 0x18, v));
+        const g = Math.round(lerp(0x0c, 0x55, v));
+        const b = Math.round(lerp(0x08, 0x14, v));
+        const alpha = Math.round(lerp(60, 160, v));
 
         const idx = (y * W + x) * 4;
         d[idx]   = r;
@@ -837,23 +838,27 @@
       }
     }
     ctx.putImageData(imgData, 0, 0);
-    t += speed * 16; // ~60fps step
+    t += speed * 16;
     animId = requestAnimationFrame(draw);
   }
 
   function start() {
-    if (animId) return; // already running
+    if (animId) return;
     canvas = document.getElementById('noiseCanvas');
     if (!canvas) return;
     ctx = canvas.getContext('2d');
+    canvas.addEventListener('mousemove', e => {
+      const rect = canvas.getBoundingClientRect();
+      mx = (e.clientX - rect.left)  / rect.width;
+      my = (e.clientY - rect.top)   / rect.height;
+      targetMouseWarp = 1.0;
+    });
+    canvas.addEventListener('mouseleave', () => { targetMouseWarp = 0; });
     resize();
     draw();
   }
 
-  // Pause when stateEmpty is hidden, restart when shown
-  const _showState = window.showState;
   window._startNoiseCanvas = start;
-
   document.addEventListener('DOMContentLoaded', start);
 })();
 
@@ -934,7 +939,7 @@ function makeAutocomplete(inputId, dropdownId, crsId) {
     if (!matches.length) { dropdown.classList.add('hidden'); return; }
 
     dropdown.innerHTML = matches.map(s =>
-      `<div class="sidebar-dropdown-item" data-name="${s.name}" data-crs="${s.crs}">
+      `<div class="sidebar-dropdown-item" role="option" aria-selected="false" tabindex="-1" data-name="${s.name}" data-crs="${s.crs}">
         <span>${s.name}</span>
         <span class="sidebar-dropdown-crs">${s.crs}</span>
       </div>`
@@ -957,19 +962,21 @@ function makeAutocomplete(inputId, dropdownId, crsId) {
       dropdown.classList.add('hidden');
   });
 
+  function setActiveItem(next, prev) {
+    if (prev) { prev.classList.remove('active'); prev.setAttribute('aria-selected', 'false'); }
+    if (next) { next.classList.add('active');    next.setAttribute('aria-selected', 'true'); input.setAttribute('aria-activedescendant', next.id || ''); }
+    else { input.removeAttribute('aria-activedescendant'); }
+  }
+
   input.addEventListener('keydown', e => {
     const items  = dropdown.querySelectorAll('[data-crs]');
     const active = dropdown.querySelector('.active');
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      const next = active ? active.nextElementSibling : items[0];
-      if (active) active.classList.remove('active');
-      if (next) next.classList.add('active');
+      setActiveItem(active ? active.nextElementSibling : items[0], active);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      const prev = active ? active.previousElementSibling : items[items.length - 1];
-      if (active) active.classList.remove('active');
-      if (prev) prev.classList.add('active');
+      setActiveItem(active ? active.previousElementSibling : items[items.length - 1], active);
     } else if (e.key === 'Enter' && active) {
       e.preventDefault();
       input.value = active.dataset.name;
@@ -1056,7 +1063,7 @@ function renderTrainCards(trains, days) {
       ? t.departure.slice(0,2) + ':' + t.departure.slice(2)
       : t.departure;
     const op = t.operator ? `<span class="inline-block text-xs font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 truncate max-w-full mt-1.5">${t.operator}</span>` : '';
-    return `<button onclick="selectTrain('${t.departure}','${days}')" class="train-card">
+    return `<button onclick="selectTrain('${t.departure}','${days}')" class="train-card" aria-label="Select ${dep} departure">
       <p class="tabular text-xl font-bold text-gray-900 leading-none tracking-tight">${dep}</p>
       ${op}
     </button>`;
@@ -1067,13 +1074,13 @@ function renderTrainPills() {
   document.getElementById('trainPills').innerHTML = currentTrains.map(t => {
     const dep = t.departure.slice(0,2) + ':' + t.departure.slice(2);
     const active = t.departure === currentDeparture;
-    return `<button onclick="switchTrain('${t.departure}')" class="train-pill${active ? ' active' : ''}">${dep}</button>`;
+    return `<button onclick="switchTrain('${t.departure}')" class="train-pill${active ? ' active' : ''}" aria-pressed="${active}">${dep}</button>`;
   }).join('');
 }
 
 function renderPeriodPills() {
   document.getElementById('periodPills').innerHTML = PERIOD_OPTIONS.map(p =>
-    `<button onclick="setPeriod(${p.months})" class="period-pill${p.months === currentMonths ? ' active' : ''}">${p.label}</button>`
+    `<button onclick="setPeriod(${p.months})" class="period-pill${p.months === currentMonths ? ' active' : ''}" aria-pressed="${p.months === currentMonths}">${p.label}</button>`
   ).join('');
 }
 
