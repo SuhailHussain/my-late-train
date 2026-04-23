@@ -16,8 +16,8 @@
       --pip-panel:  #0c130c;
       --pip-border: #1a3a1a;
       --pip-green:  #3dff3d;
-      --pip-dim:    #1d7a1d;
-      --pip-muted:  #0f4a0f;
+      --pip-dim:    #57b857;   /* 7.7:1 on #080c08 — passes WCAG AA */
+      --pip-muted:  #3d8f3d;   /* 3.8:1 — passes AA for large/UI text */
       --pip-amber:  #ffb000;
       --pip-red:    #ff3d3d;
       --pip-glow:   none;
@@ -55,7 +55,7 @@
       background: repeating-linear-gradient(
         to bottom,
         transparent 0px, transparent 3px,
-        rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px
+        rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px
       );
       pointer-events: none;
       z-index: 9999;
