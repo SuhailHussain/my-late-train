@@ -55,7 +55,7 @@ def create_app(config: Config | None = None) -> Flask:
         return render_template("landing.html")
 
     @app.route("/dashboard")
-def index():
+    def index():
         cfg = get_config()
         origin = request.args.get("from", cfg.route.origin).upper()
         destination = request.args.get("to", cfg.route.destination).upper()
@@ -71,14 +71,14 @@ def index():
         )
 
     @app.route("/api/departure-times")
-def api_departure_times():
+    def api_departure_times():
         cfg = get_config()
         with get_connection(cfg.database_path) as conn:
             times = query_departure_times(conn)
         return jsonify(times)
 
     @app.route("/api/today")
-def api_today():
+    def api_today():
         cfg = get_config()
         today_str = request.args.get("date", date.today().isoformat())
         departure_time = request.args.get("departure_time") or None
@@ -92,7 +92,7 @@ def api_today():
         return jsonify(result)
 
     @app.route("/api/trends")
-def api_trends():
+    def api_trends():
         cfg = get_config()
         days = min(int(request.args.get("days", 30)), 365)
         departure_time = request.args.get("departure_time") or None
@@ -101,7 +101,7 @@ def api_trends():
         return jsonify([dict(r) for r in rows])
 
     @app.route("/api/worst-days")
-def api_worst_days():
+    def api_worst_days():
         cfg = get_config()
         limit = min(int(request.args.get("limit", 10)), 50)
         departure_time = request.args.get("departure_time") or None
@@ -110,7 +110,7 @@ def api_worst_days():
         return jsonify([dict(r) for r in rows])
 
     @app.route("/api/reasons")
-def api_reasons():
+    def api_reasons():
         cfg = get_config()
         months = min(int(request.args.get("months", 3)), 24)
         with get_connection(cfg.database_path) as conn:
@@ -118,14 +118,14 @@ def api_reasons():
         return jsonify([dict(r) for r in rows])
 
     @app.route("/api/hsp-summary")
-def api_hsp_summary():
+    def api_hsp_summary():
         cfg = get_config()
         with get_connection(cfg.database_path) as conn:
             rows = query_hsp_summary(conn)
         return jsonify([dict(r) for r in rows])
 
     @app.route("/api/stats")
-def api_stats():
+    def api_stats():
         """Quick summary stats for the header cards."""
         cfg = get_config()
         departure_time = request.args.get("departure_time") or None
@@ -157,7 +157,7 @@ def api_stats():
         })
 
     @app.route("/results")
-def results():
+    def results():
         origin = request.args.get("from", "").upper()
         destination = request.args.get("to", "").upper()
         departure = request.args.get("departure", "")
@@ -171,7 +171,7 @@ def results():
         )
 
     @app.route("/api/trains")
-def api_trains():
+    def api_trains():
         """Return actual trains for a route around a given time (from RTT)."""
         from late_train.rtt import _make_client as rtt_client, search_location, get_service_detail, _iso_to_hhmm
 
@@ -251,14 +251,13 @@ def api_trains():
         return jsonify(trains_list)
 
     @app.route("/api/performance")
-def api_performance():
+    def api_performance():
         """Return historical performance for a route + departure time.
 
         Tier 1: local RTT daily_observations (most detail, configured route only)
         Tier 2: HSP on-demand cache (any route, refreshed weekly)
         Tier 3: live HSP API call → cached → returned
         """
-        from datetime import timedelta
         from late_train.hsp import _make_client as _make_hsp_client, get_service_metrics
 
         cfg = get_config()
@@ -328,7 +327,7 @@ def api_performance():
         return jsonify(result)
 
     @app.route("/api/performance/trend")
-def api_performance_trend():
+    def api_performance_trend():
         from late_train.hsp import _make_client as _make_hsp_client, get_service_metrics
 
         cfg         = get_config()
