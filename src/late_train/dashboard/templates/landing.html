@@ -814,32 +814,27 @@
     resize();
     const imgData = ctx.createImageData(W, H);
     const d = imgData.data;
-    const speed = 0.0003;
+    const speed = 0.0012;
     const scale = 0.12;
-    // Mouse position in pixel-space coordinates
     const mxPx = mx * W, myPx = my * H;
-    const disperseRadius = W * 0.35; // influence radius in canvas pixels
+    const disperseRadius = W * 0.3;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const wx = fbm(x * scale + 0.3, y * scale + 0.7, 3);
         const wy = fbm(x * scale + 3.1, y * scale + 1.4, 3);
         const warpStrength = 1.8;
-
-        // Radial dispersion: push noise lookup outward from cursor
-        const dx = x - mxPx, dy = y - myPx;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const falloff = Math.max(0, 1 - dist / disperseRadius);
-        const push = falloff * falloff * mouseWarp * 4.5;
-        const rx = (dx / dist) * push;
-        const ry = (dy / dist) * push;
-
-        const nx = x * scale + wx * warpStrength + t * 0.4 + rx;
-        const ny = y * scale + wy * warpStrength + t * 0.15 + ry;
+        const nx = x * scale + wx * warpStrength + t * 0.4;
+        const ny = y * scale + wy * warpStrength + t * 0.15;
         let v = fbm(nx, ny, 5);
         v = (v + 1) * 0.5;
         v = Math.pow(v, 1.4);
 
-        // Brighter phosphor-green clouds
+        // Burn to black near cursor
+        const dx = x - mxPx, dy = y - myPx;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const falloff = Math.max(0, 1 - dist / disperseRadius);
+        v *= 1 - falloff * falloff * mouseWarp;
+
         const r = Math.round(lerp(0x08, 0x28, v));
         const g = Math.round(lerp(0x0c, 0xaa, v));
         const b = Math.round(lerp(0x08, 0x22, v));
