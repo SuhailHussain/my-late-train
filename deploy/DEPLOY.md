@@ -64,14 +64,6 @@ Paste (replace all values):
 ```env
 RTT_REFRESH_TOKEN=your_rtt_token_here
 HSP_API_KEY=your_hsp_key_here
-
-# Generate password hash (run on your local machine):
-#   python -c "import bcrypt; print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt()).decode())"
-DASHBOARD_PASSWORD_HASH=$2b$12$REPLACE_WITH_HASH
-
-# Generate a secret key (run on your local machine):
-#   python -c "import secrets; print(secrets.token_hex(32))"
-SECRET_KEY=replace_with_64_char_hex
 ```
 
 ---

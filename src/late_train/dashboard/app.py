@@ -9,15 +9,12 @@ browser, with Flask serving JSON from the /api/* endpoints.
 from __future__ import annotations
 
 import logging
-import os
 from calendar import monthrange
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
-from functools import wraps
 from pathlib import Path
 
-import bcrypt
-from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, render_template, request
 
 from late_train.config import Config, load_config
 from late_train.db import (
@@ -49,56 +46,16 @@ def create_app(config: Config | None = None) -> Flask:
 
     app = Flask(__name__, template_folder="templates")
     app.config["LATE_TRAIN_CONFIG"] = config
-    app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
 
     def get_config() -> Config:
         return app.config["LATE_TRAIN_CONFIG"]
 
-    # ── Auth helpers ──────────────────────────────────────────────────────────
-
-    def _password_hash() -> bytes | None:
-        raw = os.environ.get("DASHBOARD_PASSWORD_HASH", "").strip()
-        return raw.encode() if raw else None
-
-    def _require_auth(f):
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            if _password_hash() and not session.get("authenticated"):
-                return redirect(url_for("login", next=request.path))
-            return f(*args, **kwargs)
-        return wrapped
-
-    @app.route("/login", methods=["GET", "POST"])
-    def login():
-        pw_hash = _password_hash()
-        if not pw_hash:
-            # No password configured — skip login
-            session["authenticated"] = True
-            return redirect(request.args.get("next") or "/")
-
-        error = None
-        if request.method == "POST":
-            entered = request.form.get("password", "").encode()
-            if bcrypt.checkpw(entered, pw_hash):
-                session["authenticated"] = True
-                return redirect(request.args.get("next") or "/", 303)
-            error = "Incorrect password"
-
-        return render_template("login.html", error=error)
-
-    @app.route("/logout")
-    def logout():
-        session.clear()
-        return redirect(url_for("login"))
-
     @app.route("/")
-    @_require_auth
     def landing():
         return render_template("landing.html")
 
     @app.route("/dashboard")
-    @_require_auth
-    def index():
+def index():
         cfg = get_config()
         origin = request.args.get("from", cfg.route.origin).upper()
         destination = request.args.get("to", cfg.route.destination).upper()
@@ -114,16 +71,14 @@ def create_app(config: Config | None = None) -> Flask:
         )
 
     @app.route("/api/departure-times")
-    @_require_auth
-    def api_departure_times():
+def api_departure_times():
         cfg = get_config()
         with get_connection(cfg.database_path) as conn:
             times = query_departure_times(conn)
         return jsonify(times)
 
     @app.route("/api/today")
-    @_require_auth
-    def api_today():
+def api_today():
         cfg = get_config()
         today_str = request.args.get("date", date.today().isoformat())
         departure_time = request.args.get("departure_time") or None
@@ -137,8 +92,7 @@ def create_app(config: Config | None = None) -> Flask:
         return jsonify(result)
 
     @app.route("/api/trends")
-    @_require_auth
-    def api_trends():
+def api_trends():
         cfg = get_config()
         days = min(int(request.args.get("days", 30)), 365)
         departure_time = request.args.get("departure_time") or None
@@ -147,8 +101,7 @@ def create_app(config: Config | None = None) -> Flask:
         return jsonify([dict(r) for r in rows])
 
     @app.route("/api/worst-days")
-    @_require_auth
-    def api_worst_days():
+def api_worst_days():
         cfg = get_config()
         limit = min(int(request.args.get("limit", 10)), 50)
         departure_time = request.args.get("departure_time") or None
@@ -157,8 +110,7 @@ def create_app(config: Config | None = None) -> Flask:
         return jsonify([dict(r) for r in rows])
 
     @app.route("/api/reasons")
-    @_require_auth
-    def api_reasons():
+def api_reasons():
         cfg = get_config()
         months = min(int(request.args.get("months", 3)), 24)
         with get_connection(cfg.database_path) as conn:
@@ -166,16 +118,14 @@ def create_app(config: Config | None = None) -> Flask:
         return jsonify([dict(r) for r in rows])
 
     @app.route("/api/hsp-summary")
-    @_require_auth
-    def api_hsp_summary():
+def api_hsp_summary():
         cfg = get_config()
         with get_connection(cfg.database_path) as conn:
             rows = query_hsp_summary(conn)
         return jsonify([dict(r) for r in rows])
 
     @app.route("/api/stats")
-    @_require_auth
-    def api_stats():
+def api_stats():
         """Quick summary stats for the header cards."""
         cfg = get_config()
         departure_time = request.args.get("departure_time") or None
@@ -207,8 +157,7 @@ def create_app(config: Config | None = None) -> Flask:
         })
 
     @app.route("/results")
-    @_require_auth
-    def results():
+def results():
         origin = request.args.get("from", "").upper()
         destination = request.args.get("to", "").upper()
         departure = request.args.get("departure", "")
@@ -222,8 +171,7 @@ def create_app(config: Config | None = None) -> Flask:
         )
 
     @app.route("/api/trains")
-    @_require_auth
-    def api_trains():
+def api_trains():
         """Return actual trains for a route around a given time (from RTT)."""
         from late_train.rtt import _make_client as rtt_client, search_location, get_service_detail, _iso_to_hhmm
 
@@ -303,8 +251,7 @@ def create_app(config: Config | None = None) -> Flask:
         return jsonify(trains_list)
 
     @app.route("/api/performance")
-    @_require_auth
-    def api_performance():
+def api_performance():
         """Return historical performance for a route + departure time.
 
         Tier 1: local RTT daily_observations (most detail, configured route only)
@@ -381,8 +328,7 @@ def create_app(config: Config | None = None) -> Flask:
         return jsonify(result)
 
     @app.route("/api/performance/trend")
-    @_require_auth
-    def api_performance_trend():
+def api_performance_trend():
         from late_train.hsp import _make_client as _make_hsp_client, get_service_metrics
 
         cfg         = get_config()
