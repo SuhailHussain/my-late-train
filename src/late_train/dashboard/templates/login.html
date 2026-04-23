@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access required — My Late Train</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --pip-bg:     #080c08;
+      --pip-panel:  #0c130c;
+      --pip-border: #1a3a1a;
+      --pip-green:  #3dff3d;
+      --pip-dim:    #1d7a1d;
+      --pip-muted:  #0f4a0f;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--pip-bg);
+      color: var(--pip-green);
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+      pointer-events: none;
+      z-index: 9999;
+    }
+    .card {
+      background: var(--pip-panel);
+      border: 1px solid var(--pip-border);
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 360px;
+    }
+    h1 {
+      font-family: 'VT323', monospace;
+      font-size: 2.2rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--pip-dim);
+      letter-spacing: 0.08em;
+      margin-bottom: 1.75rem;
+    }
+    .rule { width: 100%; height: 1px; background: var(--pip-border); margin-bottom: 1.75rem; }
+    label {
+      display: block;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--pip-dim);
+      margin-bottom: 0.4rem;
+    }
+    input[type="password"] {
+      width: 100%;
+      background: var(--pip-bg);
+      border: 1px solid var(--pip-border);
+      color: var(--pip-green);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1rem;
+      padding: 0.5rem 0.75rem;
+      outline: none;
+      border-radius: 0;
+      margin-bottom: 1.25rem;
+    }
+    input[type="password"]:focus { border-color: var(--pip-green); }
+    input[type="password"]::placeholder { color: var(--pip-muted); }
+    button {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--pip-green);
+      color: var(--pip-green);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.6rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      border-radius: 0;
+    }
+    button:hover { background: rgba(61,255,61,0.08); }
+    .error {
+      font-size: 0.75rem;
+      color: #ff3d3d;
+      letter-spacing: 0.06em;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>My Late Train</h1>
+    <p class="subtitle">Authentication required</p>
+    <div class="rule"></div>
+    <form method="post" action="/login">
+      {% if error %}
+      <p class="error">&#x25B6; {{ error }}</p>
+      {% endif %}
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Enter password" autofocus autocomplete="current-password">
+      <button type="submit">Access</button>
+    </form>
+  </div>
+</body>
+</html>

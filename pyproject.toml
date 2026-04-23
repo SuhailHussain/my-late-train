@@ -12,6 +12,7 @@ dependencies = [
     "flask>=3.0",
     "gunicorn>=22.0",
     "pyyaml>=6.0",
+    "bcrypt>=4.0",
 ]
 
 [project.optional-dependencies]
