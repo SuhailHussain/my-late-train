@@ -1,5 +1,7 @@
 # My Late Train
 
+> **Disclaimer:** This project is built for educational purposes and to explore the capabilities of [Claude Code](https://claude.ai/code). It uses publicly available APIs ([Realtime Trains](https://api-portal.rtt.io), [National Rail HSP](https://raildata.org.uk)) and is not affiliated with or endorsed by any train operator or Network Rail.
+
 A personal dashboard that answers one question: **how late is my train, historically?**
 
 Enter a route, departure time, and day type — get back on-time rates, cancellation rates, and a breakdown of delay bands drawn from real National Rail data.
