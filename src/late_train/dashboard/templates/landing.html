@@ -1110,24 +1110,43 @@ function runSearch() {
 
 function renderTrainCards(trains, days) {
   currentTrains = trains;
-  document.getElementById('trainCards').innerHTML = trains.map(t => {
+  const container = document.getElementById('trainCards');
+  container.innerHTML = '';
+  trains.forEach(t => {
     const dep = t.departure.length === 4
       ? t.departure.slice(0,2) + ':' + t.departure.slice(2)
       : t.departure;
-    const op = t.operator ? `<span class="inline-block text-xs font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 truncate max-w-full mt-1.5">${t.operator}</span>` : '';
-    return `<button onclick="selectTrain('${t.departure}','${days}')" class="train-card" aria-label="Select ${dep} departure">
-      <p class="tabular text-xl font-bold text-gray-900 leading-none tracking-tight">${dep}</p>
-      ${op}
-    </button>`;
-  }).join('');
+    const card = document.createElement('button');
+    card.className = 'train-card';
+    card.setAttribute('aria-label', `Select ${dep} departure`);
+    card.addEventListener('click', () => selectTrain(t.departure, days));
+    const p = document.createElement('p');
+    p.className = 'tabular text-xl font-bold text-gray-900 leading-none tracking-tight';
+    p.textContent = dep;
+    card.appendChild(p);
+    if (t.operator) {
+      const op = document.createElement('span');
+      op.className = 'inline-block text-xs font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 truncate max-w-full mt-1.5';
+      op.textContent = t.operator;
+      card.appendChild(op);
+    }
+    container.appendChild(card);
+  });
 }
 
 function renderTrainPills() {
-  document.getElementById('trainPills').innerHTML = currentTrains.map(t => {
+  const container = document.getElementById('trainPills');
+  container.innerHTML = '';
+  currentTrains.forEach(t => {
     const dep = t.departure.slice(0,2) + ':' + t.departure.slice(2);
     const active = t.departure === currentDeparture;
-    return `<button onclick="switchTrain('${t.departure}')" class="train-pill${active ? ' active' : ''}" aria-pressed="${active}">${dep}</button>`;
-  }).join('');
+    const pill = document.createElement('button');
+    pill.className = `train-pill${active ? ' active' : ''}`;
+    pill.setAttribute('aria-pressed', active);
+    pill.textContent = dep;
+    pill.addEventListener('click', () => switchTrain(t.departure));
+    container.appendChild(pill);
+  });
 }
 
 function renderPeriodPills() {
