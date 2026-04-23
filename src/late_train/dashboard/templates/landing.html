@@ -816,22 +816,34 @@
     const d = imgData.data;
     const speed = 0.0003;
     const scale = 0.12;
+    // Mouse position in pixel-space coordinates
+    const mxPx = mx * W, myPx = my * H;
+    const disperseRadius = W * 0.35; // influence radius in canvas pixels
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const wx = fbm(x * scale + 0.3, y * scale + 0.7, 3);
         const wy = fbm(x * scale + 3.1, y * scale + 1.4, 3);
         const warpStrength = 1.8;
-        const nx = x * scale + wx * warpStrength + t * 0.4 + mx * mouseWarp * 2.5;
-        const ny = y * scale + wy * warpStrength + t * 0.15 + my * mouseWarp * 2.0;
+
+        // Radial dispersion: push noise lookup outward from cursor
+        const dx = x - mxPx, dy = y - myPx;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const falloff = Math.max(0, 1 - dist / disperseRadius);
+        const push = falloff * falloff * mouseWarp * 4.5;
+        const rx = (dx / dist) * push;
+        const ry = (dy / dist) * push;
+
+        const nx = x * scale + wx * warpStrength + t * 0.4 + rx;
+        const ny = y * scale + wy * warpStrength + t * 0.15 + ry;
         let v = fbm(nx, ny, 5);
         v = (v + 1) * 0.5;
         v = Math.pow(v, 1.4);
 
-        // Faint, barely-green dark texture
-        const r = Math.round(lerp(0x08, 0x18, v));
-        const g = Math.round(lerp(0x0c, 0x55, v));
-        const b = Math.round(lerp(0x08, 0x14, v));
-        const alpha = Math.round(lerp(60, 160, v));
+        // Brighter phosphor-green clouds
+        const r = Math.round(lerp(0x08, 0x28, v));
+        const g = Math.round(lerp(0x0c, 0xaa, v));
+        const b = Math.round(lerp(0x08, 0x22, v));
+        const alpha = Math.round(lerp(80, 210, v));
 
         const idx = (y * W + x) * 4;
         d[idx]   = r;
