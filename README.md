@@ -6,7 +6,9 @@ A personal dashboard that answers one question: **how late is my train, historic
 
 Enter a route, departure time, and day type — get back on-time rates, cancellation rates, and a breakdown of delay bands drawn from real National Rail data.
 
-![terminal/CRT aesthetic inspired by Fallout's Pip-Boy]
+![Landing page — generative noise canvas on first load](docs/landing.png)
+
+![Results page — KPI cards and delay distribution chart](docs/dashboard.png)
 
 ## What it does
 
